@@ -4,7 +4,8 @@ import 'dart:typed_data';
 
 import 'filename_sanitizer.dart';
 
-Future<String> saveFileToDevice(String filename, List<int> bytes, String? dirPath) async {
+Future<String> saveFileToDevice(
+    String filename, List<int> bytes, String? dirPath) async {
   final blob = html.Blob([Uint8List.fromList(bytes)]);
   final url = html.Url.createObjectUrlFromBlob(blob);
   html.AnchorElement(href: url)

@@ -47,8 +47,8 @@ void main() {
   });
 
   test('get returns null when not cached', () async {
-    expect(await ImageDiskCache.instance.get(_uniqueKey('miss'), 'thumb'),
-        isNull);
+    expect(
+        await ImageDiskCache.instance.get(_uniqueKey('miss'), 'thumb'), isNull);
   });
 
   test('has reports presence correctly', () async {

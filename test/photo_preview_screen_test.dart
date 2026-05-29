@@ -17,7 +17,9 @@ class _FakeApi extends CameraApi {
   final List<String> deletedPaths = [];
 
   @override
-  Future<bool> testConnection({Duration timeout = const Duration(seconds: 5)}) async => true;
+  Future<bool> testConnection(
+          {Duration timeout = const Duration(seconds: 5)}) async =>
+      true;
 
   @override
   Future<bool> deleteFile(CameraFile file) async {
@@ -149,8 +151,7 @@ void main() {
     expect(find.text('B.JPG'), findsNothing);
   });
 
-  testWidgets(
-      'deleting the last file moves selection to the new last element',
+  testWidgets('deleting the last file moves selection to the new last element',
       (tester) async {
     final files = [_file('A.JPG'), _file('B.JPG'), _file('C.JPG')];
     final api = _FakeApi();

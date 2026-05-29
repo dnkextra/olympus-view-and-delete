@@ -7,7 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'app_logger.dart';
 import 'filename_sanitizer.dart';
 
-Future<String> saveFileToDevice(String filename, List<int> bytes, String? dirPath) async {
+Future<String> saveFileToDevice(
+    String filename, List<int> bytes, String? dirPath) async {
   final dir = dirPath ?? await getSaveDirectory();
   await ensureDirectory(dir);
   final safe = sanitizeFilename(filename);
@@ -21,8 +22,7 @@ Future<String> saveFileToDevice(String filename, List<int> bytes, String? dirPat
       unawaited(MediaScanner.loadMedia(path: filePath));
     } catch (e) {
       // Non-fatal: file is saved, only the gallery refresh failed.
-      AppLogger.debug('MediaScanner.loadMedia failed: $e',
-          name: 'file_saver');
+      AppLogger.debug('MediaScanner.loadMedia failed: $e', name: 'file_saver');
     }
   }
 

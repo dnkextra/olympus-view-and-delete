@@ -14,9 +14,11 @@ class ThumbnailManager {
   ThumbnailManager._();
 
   static const int _maxConcurrent = kMaxConcurrentThumbs;
+
   /// Max number of thumbnails kept in the in-memory LRU cache. Disk cache
   /// handles persistence; this just bounds RAM for very large libraries.
   static const int _maxMemCache = kMaxMemThumbs;
+
   /// Max total bytes kept in the in-memory cache (second RAM cap).
   static const int _maxMemBytes = kMaxMemThumbBytes;
   int _active = 0;
@@ -53,7 +55,8 @@ class ThumbnailManager {
 
     final completer = Completer<Uint8List?>();
     _inflight[url] = completer;
-    _queue.add(_Request(url: url, index: index, completer: completer, imagePath: imagePath));
+    _queue.add(_Request(
+        url: url, index: index, completer: completer, imagePath: imagePath));
     // Try disk cache first
     if (imagePath.isNotEmpty) {
       _tryDiskCache(url, imagePath, completer);
@@ -92,7 +95,8 @@ class ThumbnailManager {
   void debugPutInMemCache(String url, Uint8List bytes) =>
       _putInMemCache(url, bytes);
 
-  Future<void> _tryDiskCache(String url, String imagePath, Completer<Uint8List?> completer) async {
+  Future<void> _tryDiskCache(
+      String url, String imagePath, Completer<Uint8List?> completer) async {
     final cached = await ImageDiskCache.instance.get(imagePath, 'thumb');
     if (cached != null) {
       _putInMemCache(url, cached);
@@ -117,8 +121,8 @@ class ThumbnailManager {
 
     while (_active < _maxConcurrent && _queue.isNotEmpty) {
       // Sort: items closer to visible range first
-      _queue.sort((a, b) =>
-          _distToVisible(a.index).compareTo(_distToVisible(b.index)));
+      _queue.sort(
+          (a, b) => _distToVisible(a.index).compareTo(_distToVisible(b.index)));
       final req = _queue.removeAt(0);
       _active++;
       _fetch(req);
@@ -188,5 +192,9 @@ class _Request {
   final int index;
   final String imagePath;
   final Completer<Uint8List?> completer;
-  _Request({required this.url, required this.index, required this.completer, this.imagePath = ''});
+  _Request(
+      {required this.url,
+      required this.index,
+      required this.completer,
+      this.imagePath = ''});
 }

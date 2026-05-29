@@ -3,41 +3,53 @@ import 'package:flutter/material.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/l10n.dart';
 import 'screens/home_screen.dart';
+import 'services/locale_controller.dart';
 
-void main() {
-  runApp(const OlympusApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final localeController = LocaleController();
+  await localeController.load();
+  runApp(OlympusApp(localeController: localeController));
 }
 
 class OlympusApp extends StatelessWidget {
-  const OlympusApp({super.key});
+  const OlympusApp({super.key, required this.localeController});
+
+  final LocaleController localeController;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.dark(
-          primary: const Color(0xFFE94560),
-          secondary: const Color(0xFF0F3460),
-          surface: const Color(0xFF1A1A2E),
-          error: const Color(0xFFE74C3C),
-        ),
-        scaffoldBackgroundColor: const Color(0xFF0F0F1A),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1A1A2E),
-          elevation: 0,
-        ),
-        cardTheme: const CardThemeData(
-          color: Color(0xFF1A1A2E),
-          elevation: 0,
-        ),
-        useMaterial3: true,
-      ),
-      localizationsDelegates: localizationsDelegates,
-      supportedLocales: L10n.all,
-      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
-      home: const HomeScreen(),
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: localeController,
+      builder: (context, locale, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            brightness: Brightness.dark,
+            colorScheme: ColorScheme.dark(
+              primary: const Color(0xFFE94560),
+              secondary: const Color(0xFF0F3460),
+              surface: const Color(0xFF1A1A2E),
+              error: const Color(0xFFE74C3C),
+            ),
+            scaffoldBackgroundColor: const Color(0xFF0F0F1A),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF1A1A2E),
+              elevation: 0,
+            ),
+            cardTheme: const CardThemeData(
+              color: Color(0xFF1A1A2E),
+              elevation: 0,
+            ),
+            useMaterial3: true,
+          ),
+          localizationsDelegates: localizationsDelegates,
+          supportedLocales: L10n.all,
+          locale: locale,
+          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+          home: HomeScreen(localeController: localeController),
+        );
+      },
     );
   }
 }

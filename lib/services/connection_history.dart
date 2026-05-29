@@ -42,7 +42,8 @@ class SavedConnection {
       cameraName: json['cameraName'] ?? '',
       btName: json['btName'] ?? '',
       btPasscode: json['btPasscode'] ?? '',
-      lastConnected: DateTime.tryParse(json['lastConnected'] ?? '') ?? DateTime.now(),
+      lastConnected:
+          DateTime.tryParse(json['lastConnected'] ?? '') ?? DateTime.now(),
     );
   }
 

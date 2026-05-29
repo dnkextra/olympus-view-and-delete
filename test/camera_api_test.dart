@@ -52,7 +52,8 @@ void main() {
 
     test('returns null when hour out of range', () {
       final date = (44 << 9) | (6 << 5) | 15;
-      final time = (24 << 11); // hour 24 invalid — actually 24 is 5 bits wraps to 24; 24>23
+      final time = (24 <<
+          11); // hour 24 invalid — actually 24 is 5 bits wraps to 24; 24>23
       // Since `>> 11 & 0x1F` max is 31; 24 > 23
       expect(CameraFile.decodeFatDateTime(date, time), isNull);
     });
@@ -175,7 +176,8 @@ void main() {
     test('thumbnailUrl / resizeImgUrl / downloadUrl', () {
       final f = _file(dir: '/DCIM/100OLYMP', name: 'P1.JPG');
       expect(f.fullPath, '/DCIM/100OLYMP/P1.JPG');
-      expect(f.thumbnailUrl, contains('/get_thumbnail.cgi?DIR=/DCIM/100OLYMP/P1.JPG'));
+      expect(f.thumbnailUrl,
+          contains('/get_thumbnail.cgi?DIR=/DCIM/100OLYMP/P1.JPG'));
       expect(f.resizeImgUrl(1920),
           contains('/get_resizeimg.cgi?DIR=/DCIM/100OLYMP/P1.JPG&size=1920'));
       expect(f.downloadUrl, endsWith('/DCIM/100OLYMP/P1.JPG'));

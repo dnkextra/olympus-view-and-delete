@@ -8,7 +8,8 @@ import '../services/thumbnail_manager.dart';
 
 /// Shared decoration for grid/list items: rounded corners, a selection
 /// border (width differs per layout) and a tinted background when selected.
-BoxDecoration _itemDecoration({required bool selected, required double borderWidth}) {
+BoxDecoration _itemDecoration(
+    {required bool selected, required double borderWidth}) {
   return BoxDecoration(
     borderRadius: BorderRadius.circular(8),
     border:
@@ -88,7 +89,9 @@ class _PhotoGridState extends State<PhotoGrid> {
         selectionMode: widget.selectionMode,
         onTap: () => widget.onTap(widget.files[i]),
         onLongPress: () => widget.onLongPress(widget.files[i]),
-        onPreview: widget.onPreview != null ? () => widget.onPreview!(widget.files[i], i) : null,
+        onPreview: widget.onPreview != null
+            ? () => widget.onPreview!(widget.files[i], i)
+            : null,
       ),
     );
   }
@@ -104,7 +107,9 @@ class _PhotoGridState extends State<PhotoGrid> {
         selectionMode: widget.selectionMode,
         onTap: () => widget.onTap(widget.files[i]),
         onLongPress: () => widget.onLongPress(widget.files[i]),
-        onPreview: widget.onPreview != null ? () => widget.onPreview!(widget.files[i], i) : null,
+        onPreview: widget.onPreview != null
+            ? () => widget.onPreview!(widget.files[i], i)
+            : null,
       ),
     );
   }
@@ -313,8 +318,8 @@ class _CameraThumbnailState extends State<_CameraThumbnail> {
   }
 
   Future<void> _load() async {
-    final bytes = await ThumbnailManager.instance.load(
-      widget.url, widget.index, imagePath: widget.imagePath);
+    final bytes = await ThumbnailManager.instance
+        .load(widget.url, widget.index, imagePath: widget.imagePath);
     if (!mounted) return;
     setState(() {
       _bytes = bytes;
@@ -328,8 +333,7 @@ class _CameraThumbnailState extends State<_CameraThumbnail> {
     if (_error) {
       return Container(
         color: const Color(0xFF252540),
-        child:
-            const Icon(Icons.broken_image, color: Colors.grey, size: 32),
+        child: const Icon(Icons.broken_image, color: Colors.grey, size: 32),
       );
     }
     if (_loading || _bytes == null) {

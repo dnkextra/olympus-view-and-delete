@@ -233,7 +233,8 @@ class CameraApi {
   /// List all files on the camera.
   /// If [onBatch] is provided, files are reported progressively as each
   /// directory is scanned, allowing the UI to show results immediately.
-  Future<List<CameraFile>> listAllFiles({void Function(List<CameraFile>)? onBatch}) async {
+  Future<List<CameraFile>> listAllFiles(
+      {void Function(List<CameraFile>)? onBatch}) async {
     try {
       await switchMode('play');
     } catch (e, st) {
@@ -316,8 +317,8 @@ class CameraApi {
       try {
         final bytes = await downloadFile(files[i]);
         final safeName = sanitizeFilename(files[i].filename);
-        final savedPath = await file_saver.saveFileToDevice(
-          safeName, bytes, saveDirPath);
+        final savedPath =
+            await file_saver.saveFileToDevice(safeName, bytes, saveDirPath);
         savedPaths.add(savedPath);
         success++;
       } catch (e, st) {

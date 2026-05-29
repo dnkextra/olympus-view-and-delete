@@ -31,7 +31,8 @@ class AppStrings {
   static const connectingTo = 'Connecting to';
   static const wifiConnected = 'WiFi connected, reaching camera...';
   static const wifiFailed = 'WiFi connection failed';
-  static const cannotConnect = 'Cannot connect to camera.\nConnect to camera WiFi first.';
+  static const cannotConnect =
+      'Cannot connect to camera.\nConnect to camera WiFi first.';
   static const retrying = 'Retrying...';
   static const loadingCameraInfo = 'Loading camera info...';
   static const loadingFileList = 'Loading file list...';

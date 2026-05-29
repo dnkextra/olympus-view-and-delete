@@ -127,7 +127,8 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: kBackgroundColor,
         title: const Text(AppStrings.deleteFiles),
-        content: Text('${AppStrings.delete} ${file.filename} (${file.sizeHuman})?\n\nThis cannot be undone!'),
+        content: Text(
+            '${AppStrings.delete} ${file.filename} (${file.sizeHuman})?\n\nThis cannot be undone!'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -157,9 +158,8 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
           Navigator.pop(context, true);
           return;
         }
-        final newIndex = _currentIndex >= _files.length
-            ? _files.length - 1
-            : _currentIndex;
+        final newIndex =
+            _currentIndex >= _files.length ? _files.length - 1 : _currentIndex;
         setState(() {
           _currentIndex = newIndex;
           _busy = false;
@@ -221,9 +221,9 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
         final bytes = Uint8List.fromList(resp.bodyBytes);
         unawaited(ImageDiskCache.instance.put(key, 'preview', bytes).catchError(
-          (Object e) => AppLogger.debug('preview disk cache put failed: $e',
-              name: 'photo_preview'),
-        ));
+              (Object e) => AppLogger.debug('preview disk cache put failed: $e',
+                  name: 'photo_preview'),
+            ));
         setState(() {
           _imageCache[key] = bytes;
           _loading.remove(key);
@@ -263,116 +263,118 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         if (didPop) return;
       },
       child: Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black.withOpacity(0.7),
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context, _deletedPaths.isNotEmpty),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(file.filename, style: const TextStyle(fontSize: 14)),
-            Text(
-              '${file.sizeHuman} · ${file.dateTimeStr}',
-              style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-            ),
-          ],
-        ),
-        actions: [
-          Text(
-            '${_currentIndex + 1}/${_files.length}',
-            style: TextStyle(color: Colors.grey[400], fontSize: 13),
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black.withOpacity(0.7),
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context, _deletedPaths.isNotEmpty),
           ),
-          if (_busy)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: SizedBox(
-                width: 20, height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(file.filename, style: const TextStyle(fontSize: 14)),
+              Text(
+                '${file.sizeHuman} · ${file.dateTimeStr}',
+                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
               ),
-            )
-          else ...[
-            IconButton(
-              icon: Icon(Icons.download, color: kAccentColor),
-              tooltip: AppStrings.downloadTooltip,
-              onPressed: _downloadCurrent,
+            ],
+          ),
+          actions: [
+            Text(
+              '${_currentIndex + 1}/${_files.length}',
+              style: TextStyle(color: Colors.grey[400], fontSize: 13),
             ),
-            IconButton(
-              icon: Icon(Icons.delete, color: kErrorColor),
-              tooltip: AppStrings.deleteTooltip,
-              onPressed: _deleteCurrent,
-            ),
-          ],
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: PageView.builder(
-        controller: _pageController,
-        itemCount: _files.length,
-        onPageChanged: _onPageChanged,
-        itemBuilder: (context, index) {
-          final key = _files[index].fullPath;
-          final bytes = _imageCache[key];
-          final isLoading = _loading.contains(key);
-          final isError = _error.contains(key);
-
-          if (isError && bytes == null) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.broken_image, color: Colors.grey, size: 64),
-                  SizedBox(height: 12),
-                  Text('Failed to load preview',
-                      style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            );
-          }
-
-          if (isLoading && bytes == null) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: CircularProgressIndicator(
-                      color: kPrimaryColor,
-                      strokeWidth: 3,
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Text('Loading preview...',
-                      style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            );
-          }
-
-          if (bytes != null) {
-            return InteractiveViewer(
-              minScale: 0.5,
-              maxScale: 4.0,
-              child: Center(
-                child: Image.memory(
-                  bytes,
-                  fit: BoxFit.contain,
-                  // Decode at display resolution to reduce decoded-image memory.
-                  cacheWidth: kPreviewImageSize,
-                  gaplessPlayback: true,
+            if (_busy)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
                 ),
+              )
+            else ...[
+              IconButton(
+                icon: Icon(Icons.download, color: kAccentColor),
+                tooltip: AppStrings.downloadTooltip,
+                onPressed: _downloadCurrent,
               ),
-            );
-          }
+              IconButton(
+                icon: Icon(Icons.delete, color: kErrorColor),
+                tooltip: AppStrings.deleteTooltip,
+                onPressed: _deleteCurrent,
+              ),
+            ],
+            const SizedBox(width: 4),
+          ],
+        ),
+        body: PageView.builder(
+          controller: _pageController,
+          itemCount: _files.length,
+          onPageChanged: _onPageChanged,
+          itemBuilder: (context, index) {
+            final key = _files[index].fullPath;
+            final bytes = _imageCache[key];
+            final isLoading = _loading.contains(key);
+            final isError = _error.contains(key);
 
-          return const SizedBox.shrink();
-        },
-      ),
+            if (isError && bytes == null) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.broken_image, color: Colors.grey, size: 64),
+                    SizedBox(height: 12),
+                    Text('Failed to load preview',
+                        style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              );
+            }
+
+            if (isLoading && bytes == null) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(
+                        color: kPrimaryColor,
+                        strokeWidth: 3,
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Text('Loading preview...',
+                        style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              );
+            }
+
+            if (bytes != null) {
+              return InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Center(
+                  child: Image.memory(
+                    bytes,
+                    fit: BoxFit.contain,
+                    // Decode at display resolution to reduce decoded-image memory.
+                    cacheWidth: kPreviewImageSize,
+                    gaplessPlayback: true,
+                  ),
+                ),
+              );
+            }
+
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }

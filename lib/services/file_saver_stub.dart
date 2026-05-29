@@ -1,5 +1,6 @@
 /// Stub - should never be imported directly
-Future<String> saveFileToDevice(String filename, List<int> bytes, String? dirPath) async {
+Future<String> saveFileToDevice(
+    String filename, List<int> bytes, String? dirPath) async {
   throw UnsupportedError('Platform not supported');
 }
 

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-05-29
+
+### Added
+- **In-app language selection**: a language picker in the app bar lets you switch the UI between System, English, Русский and Українська at runtime; the choice is persisted across launches (`LocaleController` + `SharedPreferences`) and drives `MaterialApp.locale`
+
 ## [1.3.0] - 2026-05-29
 
 ### Added

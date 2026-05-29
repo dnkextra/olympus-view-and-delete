@@ -16,7 +16,8 @@ import '../services/connection_history.dart';
 /// Charset: 44 chars (QR alphanumeric without space, / before .)
 /// Formula: decoded = charset[(41 - charset.index(encoded)) % 44]
 class OlympusQrDecoder {
-  static const String _charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\$%*+-/.:';
+  static const String _charset =
+      '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\$%*+-/.:';
   static const int _key = 41;
 
   static String _decode(String encoded) {
@@ -221,8 +222,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
       setState(() {
         _status = 'QR scanned:\n$raw\n\nUnknown format';
-        _credentials = WifiCredentials(
-          ssid: raw.trim(), password: '', security: 'NONE');
+        _credentials =
+            WifiCredentials(ssid: raw.trim(), password: '', security: 'NONE');
         _ssidController.text = raw.trim();
       });
       return;
@@ -235,7 +236,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     if (ssid.isEmpty) return;
 
     final creds = WifiCredentials(
-      ssid: ssid, password: pass, security: pass.isEmpty ? 'NONE' : 'WPA');
+        ssid: ssid, password: pass, security: pass.isEmpty ? 'NONE' : 'WPA');
 
     if (_isMobile) {
       _connectToWifi(creds);
@@ -408,7 +409,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.wifi, color: Color(0xFF2ECC71), size: 20),
+                        const Icon(Icons.wifi,
+                            color: Color(0xFF2ECC71), size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -435,7 +437,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
                             ],
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: Colors.grey[600], size: 20),
+                        Icon(Icons.chevron_right,
+                            color: Colors.grey[600], size: 20),
                       ],
                     ),
                   ),
@@ -538,8 +541,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
                 height: 300,
                 child: _controller == null
                     ? const Center(
-                        child: CircularProgressIndicator(
-                            color: Color(0xFFE94560)))
+                        child:
+                            CircularProgressIndicator(color: Color(0xFFE94560)))
                     : Stack(
                         children: [
                           MobileScanner(
@@ -584,8 +587,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
                     if (_connecting)
                       const Padding(
                         padding: EdgeInsets.only(bottom: 12),
-                        child: CircularProgressIndicator(
-                            color: Color(0xFF2ECC71)),
+                        child:
+                            CircularProgressIndicator(color: Color(0xFF2ECC71)),
                       ),
                     Text(
                       _status,
@@ -607,7 +610,8 @@ class _QrScanScreenState extends State<QrScanScreen> {
                               vertical: 14, horizontal: 32),
                         ),
                         child: const Text('Done — Go Back',
-                            style: TextStyle(color: Colors.white, fontSize: 16)),
+                            style:
+                                TextStyle(color: Colors.white, fontSize: 16)),
                       ),
                     ],
                   ],

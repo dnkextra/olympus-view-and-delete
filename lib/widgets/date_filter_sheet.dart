@@ -146,8 +146,8 @@ class _DateFilterSheetState extends State<DateFilterSheet> {
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('—',
-                          style: TextStyle(color: Colors.grey[600])),
+                      child:
+                          Text('—', style: TextStyle(color: Colors.grey[600])),
                     ),
                     Expanded(
                       child: OutlinedButton(

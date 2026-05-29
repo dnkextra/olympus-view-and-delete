@@ -53,7 +53,8 @@ void main() {
   test('save deduplicates by SSID and keeps latest on top', () async {
     await ConnectionHistory.save(_conn('SAME', pw: 'old', at: DateTime(2024)));
     await ConnectionHistory.save(_conn('OTHER', at: DateTime(2024, 2)));
-    await ConnectionHistory.save(_conn('SAME', pw: 'new', at: DateTime(2024, 3)));
+    await ConnectionHistory.save(
+        _conn('SAME', pw: 'new', at: DateTime(2024, 3)));
 
     final list = await ConnectionHistory.load();
     expect(list.map((c) => c.ssid), ['SAME', 'OTHER']);

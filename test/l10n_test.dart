@@ -16,10 +16,7 @@ Map<String, String> _readArb(String locale) {
 
 /// Returns the set of `{placeholder}` names used in an ARB value.
 Set<String> _placeholders(String value) =>
-    RegExp(r'\{(\w+)\}')
-        .allMatches(value)
-        .map((m) => m.group(1)!)
-        .toSet();
+    RegExp(r'\{(\w+)\}').allMatches(value).map((m) => m.group(1)!).toSet();
 
 void main() {
   final en = _readArb('en');
@@ -44,17 +41,16 @@ void main() {
 
   test('no locale has extra/orphan keys not present in English', () {
     for (final entry in {'ru': ru, 'uk': uk}.entries) {
-      final extra =
-          entry.value.keys.where((k) => !en.containsKey(k)).toList();
-      expect(extra, isEmpty,
-          reason: 'Orphan keys in ${entry.key}: $extra');
+      final extra = entry.value.keys.where((k) => !en.containsKey(k)).toList();
+      expect(extra, isEmpty, reason: 'Orphan keys in ${entry.key}: $extra');
     }
   });
 
   test('no translation value is empty', () {
     for (final entry in {'en': en, 'ru': ru, 'uk': uk}.entries) {
-      final empties =
-          entry.value.entries.where((e) => e.value.trim().isEmpty).map((e) => e.key);
+      final empties = entry.value.entries
+          .where((e) => e.value.trim().isEmpty)
+          .map((e) => e.key);
       expect(empties, isEmpty,
           reason: 'Empty values in ${entry.key}: ${empties.toList()}');
     }
