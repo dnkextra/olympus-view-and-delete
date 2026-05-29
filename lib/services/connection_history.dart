@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_logger.dart';
+import 'service_config.dart';
+
 class SavedConnection {
   final String ssid;
   final String password;
@@ -81,7 +84,9 @@ class ConnectionHistory {
         .map((s) {
           try {
             return SavedConnection.fromJson(jsonDecode(s));
-          } catch (_) {
+          } catch (e) {
+            AppLogger.warning('skipping corrupt saved connection: $e',
+                name: 'connection_history');
             return null;
           }
         })
@@ -100,8 +105,8 @@ class ConnectionHistory {
         // Add new entry at the top
         list.insert(0, conn);
 
-        // Keep max 10 entries
-        final trimmed = list.take(10).toList();
+        // Keep the most recent kMaxHistory entries
+        final trimmed = list.take(kMaxHistory).toList();
 
         await prefs.setStringList(
           _key,

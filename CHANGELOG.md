@@ -1,5 +1,32 @@
 # Changelog
 
+## [Unreleased]
+
+## [1.3.0] - 2026-05-29
+
+### Added
+- **Unified logging** (`AppLogger`): cross-platform logger built on `dart:developer` with `debug/info/warning/error` levels; release builds suppress logs below `warning`
+- **Centralised service tuning** (`lib/services/service_config.dart`): named constants for network timeouts, cache/memory limits, connection-history size and preview resolution (no Flutter UI dependency)
+- **In-memory thumbnail cache byte cap** (`kMaxMemThumbBytes`, 32 MiB): the thumbnail LRU now bounds RAM by total bytes in addition to entry count, so a few unusually large thumbnails can't exhaust memory; covered by new `thumbnail_manager_test.dart`
+- **Network-error test coverage** (`camera_api_network_test.dart`): `CameraApi.listImages`/`deleteFile`/`deleteFiles` now tested against 404s, timeouts, connection failures, malformed records and corrupt FAT dates via an injectable `http.Client`
+- **Localization tests** (`l10n_test.dart`): verify key parity across `en`/`ru`/`uk` ARB files, no orphan/empty translations, placeholder consistency, and that every supported locale resolves
+- **Shared test helpers** (`test/helpers/test_helpers.dart`): `FakePathProvider` and `fixedResponseClient` extracted from duplicated mock-init code in the disk-cache and preview-screen tests
+
+### Changed
+- Replaced silently swallowed `catch (_) {}` blocks across services, screens and dialogs with logged handlers that capture the error and stack trace
+- Extracted magic numbers into named constants: camera request/download/probe timeouts, mode-switch delay, disk/memory cache caps, thumbnail concurrency, batch-flush interval, QR success delay, preview load timeout, preview keep-neighbors and preview image size; removed duplicate constants and resolved the `_keepNeighbors` TODO
+- Unified filename sanitisation into a single `sanitizeFilename` (`lib/services/filename_sanitizer.dart`), replacing the duplicate copies in `camera_api` and both file savers
+- Extracted shared `_showSnack` / `_confirm` helpers in `HomeScreen` (removed duplicated SnackBar and confirmation-dialog code in download/delete handlers) and a shared `_itemDecoration` in `PhotoGrid`
+- Stricter linting in `analysis_options.yaml`: `avoid_print` (as error), `use_build_context_synchronously`, `unawaited_futures`, `cancel_subscriptions`, `close_sinks`, `prefer_final_locals`, `directives_ordering`
+- Fire-and-forget futures are now explicitly marked with `unawaited(...)`; imports sorted per `directives_ordering`
+- Thumbnail fetch timeout now uses the shared `kCameraRequestTimeout` constant instead of an inline literal
+- `CameraApi` accepts an optional injected `http.Client` (`CameraApi({client})`) for testability; production behaviour is unchanged
+- Upgraded dependencies to their latest compatible versions (`media_scanner`, `shared_preferences`, `url_launcher` and transitive packages)
+- Updated the Android toolchain to satisfy the refreshed AndroidX dependencies: `compileSdk`/`targetSdk` 35 → 36, Android Gradle Plugin 8.6.0 → 8.9.1, Gradle wrapper 8.7 → 8.11.1, NDK 26.1 → 28.2
+
+### Fixed
+- Preview screen download/delete icon tooltips now read "Download"/"Delete" instead of the all-caps action labels
+
 ## [1.2.0] - 2026-04-17
 
 ### Added

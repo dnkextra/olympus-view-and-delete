@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../constants.dart';
 import '../services/camera_api.dart';
 
 class DateFilterSheet extends StatefulWidget {
@@ -78,7 +80,6 @@ class _DateFilterSheetState extends State<DateFilterSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Handle
           Center(
             child: Container(
               width: 40,
@@ -91,24 +92,20 @@ class _DateFilterSheetState extends State<DateFilterSheet> {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Filter by Date',
+            'Filter by Date', // TODO: локализация
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-
-          // Date list
           Flexible(
             child: ListView(
               shrinkWrap: true,
               children: [
-                // All dates option
                 _DateTile(
-                  label: 'All dates',
+                  label: 'All dates', // TODO: локализация
                   count: widget.files.length,
                   active: widget.selectedDate == null && _from == null,
                   onTap: () => widget.onDateSelected(null),
                 ),
-                // Individual dates
                 ...uniqueDates.map((d) {
                   final count = CameraApi.filterByDate(widget.files, d).length;
                   return _DateTile(
@@ -118,14 +115,11 @@ class _DateFilterSheetState extends State<DateFilterSheet> {
                     onTap: () => widget.onDateSelected(d),
                   );
                 }),
-
                 const SizedBox(height: 16),
-                const Divider(color: Color(0xFF333355)),
+                const Divider(color: kBorderColor),
                 const SizedBox(height: 8),
-
-                // Date range
                 Text(
-                  'Date Range',
+                  'Date Range', // TODO: локализация
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -145,7 +139,7 @@ class _DateFilterSheetState extends State<DateFilterSheet> {
                         child: Text(
                           _from != null
                               ? _from.toString().substring(0, 10)
-                              : 'From...',
+                              : 'From...', // TODO: локализация
                           style: const TextStyle(fontSize: 14),
                         ),
                       ),
@@ -165,7 +159,7 @@ class _DateFilterSheetState extends State<DateFilterSheet> {
                         child: Text(
                           _to != null
                               ? _to.toString().substring(0, 10)
-                              : 'To...',
+                              : 'To...', // TODO: локализация
                           style: const TextStyle(fontSize: 14),
                         ),
                       ),
@@ -177,11 +171,11 @@ class _DateFilterSheetState extends State<DateFilterSheet> {
                   ElevatedButton(
                     onPressed: () => widget.onRangeSelected(_from, _to),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE94560),
+                      backgroundColor: kPrimaryColor,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: Text(
-                      'Apply Range'
+                      'Apply Range' // TODO: локализация
                       '${(_from != null && _to != null) ? ' (${CameraApi.filterByDateRange(widget.files, _from, _to).length} files)' : ''}',
                       style: const TextStyle(color: Colors.white),
                     ),
@@ -219,13 +213,13 @@ class _DateTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: active ? const Color(0xFFE94560).withOpacity(0.15) : null,
+          color: active ? kPrimaryColor.withOpacity(0.15) : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: const TextStyle(fontSize: 15)),
-            Text('$count files',
+            Text('$count files', // TODO: локализация
                 style: TextStyle(fontSize: 13, color: Colors.grey[500])),
           ],
         ),

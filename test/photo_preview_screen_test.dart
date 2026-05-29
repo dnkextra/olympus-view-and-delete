@@ -1,30 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:olympus_tg6_manager/screens/photo_preview_screen.dart';
 import 'package:olympus_tg6_manager/services/camera_api.dart';
 import 'package:olympus_tg6_manager/services/image_cache.dart';
-import 'dart:io';
 
-/// Minimal path_provider mock so [ImageDiskCache] can initialise in tests.
-class _FakePathProvider extends PathProviderPlatform
-    with MockPlatformInterfaceMixin {
-  _FakePathProvider(this.root);
-  final String root;
-
-  @override
-  Future<String?> getApplicationCachePath() async => root;
-  @override
-  Future<String?> getApplicationDocumentsPath() async => root;
-  @override
-  Future<String?> getApplicationSupportPath() async => root;
-  @override
-  Future<String?> getTemporaryPath() async => root;
-}
+import 'helpers/test_helpers.dart';
 
 /// Stub API — short-circuits delete/download so tests never hit the network.
 class _FakeApi extends CameraApi {
@@ -49,12 +34,10 @@ class _FakeApi extends CameraApi {
   }
 }
 
-/// MockClient that returns an empty body for every request, causing
+/// Client that returns an empty body for every request, causing
 /// `_loadImage` to mark the page as error and resolve immediately —
 /// avoiding any real network I/O during tests.
-http.Client _makeMockClient() {
-  return MockClient((request) async => http.Response('', 204));
-}
+http.Client _makeMockClient() => fixedResponseClient(status: 204);
 
 CameraFile _file(String name) => CameraFile(
       directory: '/DCIM/100OLYMP',
@@ -104,7 +87,7 @@ void main() {
 
   setUp(() async {
     tmp = await Directory.systemTemp.createTemp('olympus_preview_test_');
-    PathProviderPlatform.instance = _FakePathProvider(tmp.path);
+    PathProviderPlatform.instance = FakePathProvider(tmp.path);
     SharedPreferences.setMockInitialValues({});
     await ImageDiskCache.instance.resetForTests();
   });

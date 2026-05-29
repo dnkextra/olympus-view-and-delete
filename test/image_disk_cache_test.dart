@@ -3,24 +3,10 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:olympus_tg6_manager/services/image_cache.dart';
 
-/// Minimal path_provider mock that routes application cache to a temp dir.
-class _FakePathProvider extends PathProviderPlatform with MockPlatformInterfaceMixin {
-  _FakePathProvider(this.root);
-  final String root;
-
-  @override
-  Future<String?> getApplicationCachePath() async => root;
-  @override
-  Future<String?> getApplicationDocumentsPath() async => root;
-  @override
-  Future<String?> getApplicationSupportPath() async => root;
-  @override
-  Future<String?> getTemporaryPath() async => root;
-}
+import 'helpers/test_helpers.dart';
 
 /// [ImageDiskCache] is a singleton — we can't instantiate fresh instances
 /// between tests. Use unique keys per test to keep them isolated.
@@ -37,7 +23,7 @@ void main() {
 
   setUp(() async {
     tmp = await Directory.systemTemp.createTemp('olympus_img_cache_test_');
-    PathProviderPlatform.instance = _FakePathProvider(tmp.path);
+    PathProviderPlatform.instance = FakePathProvider(tmp.path);
     SharedPreferences.setMockInitialValues({});
     await ImageDiskCache.instance.resetForTests();
   });

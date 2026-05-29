@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:wifi_iot/wifi_iot.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:wifi_iot/wifi_iot.dart';
+
+import '../constants.dart';
+import '../services/app_logger.dart';
 import '../services/connection_history.dart';
 
 /// Olympus/OM System QR code decoder
@@ -148,9 +153,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
     super.initState();
     _isMobile = Platform.isAndroid || Platform.isIOS;
     if (_isMobile) {
-      _initScanner();
+      unawaited(_initScanner());
     }
-    _loadHistory();
+    unawaited(_loadHistory());
     // Auto-connect if credentials provided
     if (widget.initialSsid != null && widget.initialSsid!.isNotEmpty) {
       _ssidController.text = widget.initialSsid!;
@@ -174,7 +179,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
         facing: CameraFacing.back,
       );
       if (mounted) setState(() {});
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.warning('scanner init failed',
+          name: 'qr_scan', error: e, stackTrace: st);
       setState(() => _scannerError = true);
     }
   }
@@ -245,7 +252,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
   Future<void> _connectToWifi(WifiCredentials creds) async {
     setState(() {
       _connecting = true;
-      _status = 'Connecting to ${creds.ssid}...';
+      _status = '${AppStrings.connectingTo} ${creds.ssid}...';
     });
 
     try {
@@ -271,18 +278,18 @@ class _QrScanScreenState extends State<QrScanScreen> {
             lastConnected: DateTime.now(),
           ));
           setState(() {
-            _status = 'Connected to ${creds.ssid}!';
+            _status = '${AppStrings.connected} to ${creds.ssid}!';
             _connecting = false;
           });
-          await Future.delayed(const Duration(seconds: 2));
+          await Future.delayed(kQrSuccessDelay);
           if (mounted) Navigator.pop(context, true);
         } else {
           setState(() {
-            _status = 'Failed to connect to ${creds.ssid}';
+            _status = '${AppStrings.wifiFailed} (${creds.ssid})';
             _connecting = false;
             _scanned = false;
           });
-          _controller?.start();
+          unawaited(_controller?.start() ?? Future.value());
         }
       } else {
         await ConnectionHistory.save(SavedConnection(
@@ -295,17 +302,19 @@ class _QrScanScreenState extends State<QrScanScreen> {
         ));
         setState(() {
           _status = 'WiFi: ${creds.ssid}\nPassword: ${creds.password}\n\n'
-              'Connect manually in system settings.';
+              '${AppStrings.connectWifi} manually in system settings.';
           _connecting = false;
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.warning('QR connect failed',
+          name: 'qr_scan', error: e, stackTrace: st);
       setState(() {
         _status = 'Error: $e';
         _connecting = false;
         _scanned = false;
       });
-      _controller?.start();
+      unawaited(_controller?.start() ?? Future.value());
     }
   }
 
@@ -344,8 +353,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     } else {
       setState(() {
         _status = 'WiFi: ${conn.ssid}\nPassword: ${conn.password}\n\n'
-            'Connect to this network manually in Windows Settings,\n'
-            'then press "Done" below.';
+            '${AppStrings.connectWifi} manually in Windows Settings,\nthen press "Done" below.';
       });
     }
   }
@@ -385,7 +393,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
                 ),
                 onDismissed: (_) async {
                   await ConnectionHistory.delete(conn.ssid);
-                  _loadHistory();
+                  unawaited(_loadHistory());
                 },
                 child: GestureDetector(
                   onTap: () => _connectFromHistory(conn),

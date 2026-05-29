@@ -1,27 +1,16 @@
+import 'dart:async';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:media_scanner/media_scanner.dart';
 
-/// Sanitise a filename at the save boundary. Prevents path traversal if the
-/// caller forgets to pre-sanitise (defense in depth). Strips directory
-/// separators, `..`, NUL, and reserved characters.
-String _safeBasename(String raw) {
-  final base = raw.split(RegExp(r'[/\\]')).last;
-  final cleaned = base
-      .replaceAll('\u0000', '')
-      .replaceAll(RegExp(r'[\x00-\x1F]'), '')
-      .replaceAll(RegExp(r'[<>:"|?*]'), '_')
-      .trim();
-  if (cleaned.isEmpty || cleaned == '.' || cleaned == '..') {
-    return 'file_${DateTime.now().millisecondsSinceEpoch}';
-  }
-  return cleaned.length > 180 ? cleaned.substring(0, 180) : cleaned;
-}
+import 'package:media_scanner/media_scanner.dart';
+import 'package:path_provider/path_provider.dart';
+
+import 'app_logger.dart';
+import 'filename_sanitizer.dart';
 
 Future<String> saveFileToDevice(String filename, List<int> bytes, String? dirPath) async {
   final dir = dirPath ?? await getSaveDirectory();
   await ensureDirectory(dir);
-  final safe = _safeBasename(filename);
+  final safe = sanitizeFilename(filename);
   final filePath = '$dir/$safe';
   final file = File(filePath);
   await file.writeAsBytes(bytes);
@@ -29,8 +18,12 @@ Future<String> saveFileToDevice(String filename, List<int> bytes, String? dirPat
   // Notify Android MediaScanner so file appears in Gallery
   if (Platform.isAndroid) {
     try {
-      MediaScanner.loadMedia(path: filePath);
-    } catch (_) {}
+      unawaited(MediaScanner.loadMedia(path: filePath));
+    } catch (e) {
+      // Non-fatal: file is saved, only the gallery refresh failed.
+      AppLogger.debug('MediaScanner.loadMedia failed: $e',
+          name: 'file_saver');
+    }
   }
 
   return filePath;

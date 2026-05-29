@@ -1,23 +1,31 @@
 import 'dart:async';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
+import 'app_logger.dart';
 import 'camera_api.dart' show cameraIp;
 import 'image_cache.dart';
+import 'service_config.dart';
 
 /// Manages thumbnail loading with concurrency limit and priority for visible items.
 class ThumbnailManager {
   static final ThumbnailManager instance = ThumbnailManager._();
   ThumbnailManager._();
 
-  static const int _maxConcurrent = 3;
+  static const int _maxConcurrent = kMaxConcurrentThumbs;
   /// Max number of thumbnails kept in the in-memory LRU cache. Disk cache
   /// handles persistence; this just bounds RAM for very large libraries.
-  static const int _maxMemCache = 300;
+  static const int _maxMemCache = kMaxMemThumbs;
+  /// Max total bytes kept in the in-memory cache (second RAM cap).
+  static const int _maxMemBytes = kMaxMemThumbBytes;
   int _active = 0;
   final List<_Request> _queue = [];
   // LinkedHashMap keeps insertion order — we use it for LRU by re-inserting
   // on access (see [load]).
   final Map<String, Uint8List> _cache = <String, Uint8List>{};
+  // Running total of bytes held in [_cache], kept in sync on insert/evict.
+  int _cacheBytes = 0;
   final Map<String, Completer<Uint8List?>> _inflight = {};
   final http.Client _client = http.Client();
 
@@ -56,12 +64,33 @@ class ThumbnailManager {
   }
 
   void _putInMemCache(String url, Uint8List bytes) {
+    // If replacing an existing entry, drop its old size first.
+    final previous = _cache.remove(url);
+    if (previous != null) _cacheBytes -= previous.lengthInBytes;
     _cache[url] = bytes;
-    // Evict oldest (LRU = first inserted) until within cap.
-    while (_cache.length > _maxMemCache) {
-      _cache.remove(_cache.keys.first);
+    _cacheBytes += bytes.lengthInBytes;
+    // Evict oldest (LRU = first inserted) until within both caps. Keep at
+    // least one entry so a single oversized thumbnail is still usable.
+    while (_cache.length > 1 &&
+        (_cache.length > _maxMemCache || _cacheBytes > _maxMemBytes)) {
+      final oldestKey = _cache.keys.first;
+      final removed = _cache.remove(oldestKey);
+      if (removed != null) _cacheBytes -= removed.lengthInBytes;
     }
   }
+
+  /// Number of thumbnails currently held in the in-memory cache.
+  @visibleForTesting
+  int get memCacheCount => _cache.length;
+
+  /// Total bytes currently held in the in-memory cache.
+  @visibleForTesting
+  int get memCacheBytes => _cacheBytes;
+
+  /// Test-only insertion into the in-memory LRU (bypasses the network).
+  @visibleForTesting
+  void debugPutInMemCache(String url, Uint8List bytes) =>
+      _putInMemCache(url, bytes);
 
   Future<void> _tryDiskCache(String url, String imagePath, Completer<Uint8List?> completer) async {
     final cached = await ImageDiskCache.instance.get(imagePath, 'thumb');
@@ -111,20 +140,25 @@ class ThumbnailManager {
           'Host': cameraIp,
           'Connection': 'Keep-Alive',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(kCameraRequestTimeout);
       if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
         final bytes = Uint8List.fromList(resp.bodyBytes);
         _putInMemCache(req.url, bytes);
         if (req.imagePath.isNotEmpty) {
-          ImageDiskCache.instance
+          unawaited(ImageDiskCache.instance
               .put(req.imagePath, 'thumb', bytes)
-              .catchError((_) {});
+              .catchError((Object e, StackTrace st) {
+            AppLogger.debug('thumb disk cache put failed: $e',
+                name: 'thumbnail_manager');
+          }));
         }
         if (!req.completer.isCompleted) req.completer.complete(bytes);
       } else {
         if (!req.completer.isCompleted) req.completer.complete(null);
       }
-    } catch (_) {
+    } catch (e) {
+      AppLogger.debug('thumbnail fetch failed for ${req.url}: $e',
+          name: 'thumbnail_manager');
       if (!req.completer.isCompleted) req.completer.complete(null);
     } finally {
       _active--;
@@ -136,6 +170,7 @@ class ThumbnailManager {
   /// Clear all cache and pending requests.
   void clear() {
     _cache.clear();
+    _cacheBytes = 0;
     for (final req in _queue) {
       if (!req.completer.isCompleted) req.completer.complete(null);
     }

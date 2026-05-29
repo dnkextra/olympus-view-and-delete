@@ -92,6 +92,17 @@ flutter build windows --release
 flutter build web --release
 ```
 
+## Development
+
+### Code Quality
+- **Logging**: all diagnostics go through `lib/services/app_logger.dart` (`AppLogger.debug/info/warning/error`). Raw `print()` is forbidden and enforced as an analyzer **error** via `avoid_print`. Logs are suppressed below `warning` in release builds.
+- **Error handling**: service and UI exceptions are logged with stack traces instead of being silently swallowed; user-facing failures surface as error states / snackbars.
+- **Linting**: `analysis_options.yaml` extends `flutter_lints` with stricter rules — `avoid_print`, `use_build_context_synchronously`, `unawaited_futures`, `cancel_subscriptions`, `close_sinks`, `prefer_final_locals`, `directives_ordering`. Run `flutter analyze` — the codebase is clean of error-level issues.
+- **Configuration**: tunable constants (network timeouts, cache/memory limits, thumbnail concurrency, history size, preview resolution) live in `lib/services/service_config.dart` as plain Dart constants, with no Flutter UI dependency.
+- **Memory safety**: the in-memory thumbnail cache is bounded by both entry count (`kMaxMemThumbs`) and total bytes (`kMaxMemThumbBytes`, 32 MiB), so a handful of unusually large thumbnails can't exhaust RAM.
+- **Testability**: `CameraApi` and the photo preview screen accept an optional injected `http.Client`, allowing network behaviour (404s, timeouts, malformed data) to be tested without a real camera.
+- **Tests**: 82 unit/widget tests under `test/`, including network-error and localization coverage, with shared mock helpers in `test/helpers/`. Run `flutter test`.
+
 ## Usage
 
 1. Enable WiFi on the camera

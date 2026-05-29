@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../constants.dart';
+import '../services/app_logger.dart';
 import '../services/camera_api.dart';
 
 class DownloadProgressDialog extends StatefulWidget {
@@ -45,9 +48,11 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
           }
         },
       );
-    } catch (_) {
-      // Swallow — result stays null, dialog pops in finally. Caller shows
-      // a generic snackbar when result is null.
+    } catch (e, st) {
+      AppLogger.warning('batch download failed',
+          name: 'download_dialog', error: e, stackTrace: st);
+      // result stays null, dialog pops in finally. Caller shows a generic
+      // snackbar when result is null.
     } finally {
       if (mounted) {
         Navigator.of(context).pop(result);
@@ -60,7 +65,7 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
     final progress = _total > 0 ? _done / _total : 0.0;
 
     return AlertDialog(
-      backgroundColor: const Color(0xFF1A1A2E),
+      backgroundColor: kBackgroundColor,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -71,7 +76,7 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
             child: CircularProgressIndicator(
               value: progress,
               strokeWidth: 4,
-              color: const Color(0xFF2ECC71),
+              color: kPrimaryColor,
               backgroundColor: const Color(0xFF252540),
             ),
           ),

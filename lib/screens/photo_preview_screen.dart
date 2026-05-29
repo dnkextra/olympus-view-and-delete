@@ -1,10 +1,16 @@
+import 'dart:async';
 import 'dart:typed_data';
-import 'package:flutter/material.dart';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+
+import '../constants.dart';
+import '../services/app_logger.dart';
 import '../services/camera_api.dart';
-import '../services/image_cache.dart';
 import '../services/file_saver.dart' as file_saver;
+import '../services/image_cache.dart';
+import '../services/service_config.dart';
 
 /// Full-screen photo preview loaded via get_resizeimg (high quality).
 class PhotoPreviewScreen extends StatefulWidget {
@@ -31,7 +37,7 @@ class PhotoPreviewScreen extends StatefulWidget {
 
 class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
   // Number of neighbor pages to keep in memory on each side.
-  static const int _keepNeighbors = 3;
+  static const int _keepNeighbors = kPreviewKeepNeighbors;
 
   late PageController _pageController;
   late int _currentIndex;
@@ -102,12 +108,12 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       await file_saver.saveFileToDevice(file.filename, bytes, saveDirPath);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved: ${file.filename}')),
+        SnackBar(content: Text('${AppStrings.download}: ${file.filename}')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Download failed: $e')),
+        SnackBar(content: Text('${AppStrings.download} failed: $e')),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -119,18 +125,18 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Delete File'),
-        content: Text('Delete ${file.filename} (${file.sizeHuman})?\n\nThis cannot be undone!'),
+        backgroundColor: kBackgroundColor,
+        title: const Text(AppStrings.deleteFiles),
+        content: Text('${AppStrings.delete} ${file.filename} (${file.sizeHuman})?\n\nThis cannot be undone!'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: const Text(AppStrings.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('DELETE'),
+            style: TextButton.styleFrom(foregroundColor: kErrorColor),
+            child: const Text(AppStrings.delete),
           ),
         ],
       ),
@@ -166,14 +172,14 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       } else {
         setState(() => _busy = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Delete failed')),
+          SnackBar(content: Text('${AppStrings.delete} failed')),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Delete failed: $e')),
+          SnackBar(content: Text('${AppStrings.delete} failed: $e')),
         );
       }
     }
@@ -201,7 +207,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         return;
       }
 
-      final url = file.resizeImgUrl(1920);
+      final url = file.resizeImgUrl(kPreviewImageSize);
       final resp = await _client.get(
         Uri.parse(url),
         headers: {
@@ -209,14 +215,15 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
           'Host': cameraIp,
           'Connection': 'Keep-Alive',
         },
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(kPreviewLoadTimeout);
 
       if (!mounted) return;
       if (resp.statusCode == 200 && resp.bodyBytes.isNotEmpty) {
         final bytes = Uint8List.fromList(resp.bodyBytes);
-        ImageDiskCache.instance
-            .put(key, 'preview', bytes)
-            .catchError((_) {});
+        unawaited(ImageDiskCache.instance.put(key, 'preview', bytes).catchError(
+          (Object e) => AppLogger.debug('preview disk cache put failed: $e',
+              name: 'photo_preview'),
+        ));
         setState(() {
           _imageCache[key] = bytes;
           _loading.remove(key);
@@ -289,13 +296,13 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
             )
           else ...[
             IconButton(
-              icon: const Icon(Icons.download, color: Color(0xFF2ECC71)),
-              tooltip: 'Download',
+              icon: Icon(Icons.download, color: kAccentColor),
+              tooltip: AppStrings.downloadTooltip,
               onPressed: _downloadCurrent,
             ),
             IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              tooltip: 'Delete',
+              icon: Icon(Icons.delete, color: kErrorColor),
+              tooltip: AppStrings.deleteTooltip,
               onPressed: _deleteCurrent,
             ),
           ],
@@ -335,7 +342,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
                     width: 40,
                     height: 40,
                     child: CircularProgressIndicator(
-                      color: Color(0xFFE94560),
+                      color: kPrimaryColor,
                       strokeWidth: 3,
                     ),
                   ),
@@ -356,7 +363,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
                   bytes,
                   fit: BoxFit.contain,
                   // Decode at display resolution to reduce decoded-image memory.
-                  cacheWidth: 1920,
+                  cacheWidth: kPreviewImageSize,
                   gaplessPlayback: true,
                 ),
               ),

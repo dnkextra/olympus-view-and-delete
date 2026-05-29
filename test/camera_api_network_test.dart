@@ -1,0 +1,121 @@
+import 'dart:async';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:olympus_tg6_manager/services/camera_api.dart';
+
+CameraApi _apiReturning(
+  FutureOr<http.Response> Function(http.Request request) handler,
+) =>
+    CameraApi(client: MockClient((req) async => handler(req)));
+
+CameraFile _file(String name) => CameraFile(
+      directory: '/DCIM/100OLYMP',
+      filename: name,
+      size: 100,
+      attributes: 0,
+      dateRaw: 0,
+      timeRaw: 0,
+      date: DateTime(2024, 1, 1),
+    );
+
+void main() {
+  group('CameraApi.listImages — network errors', () {
+    test('404 yields an empty list (treated as empty directory)', () async {
+      final api = _apiReturning((_) => http.Response('', 404));
+      expect(await api.listImages('/DCIM'), isEmpty);
+    });
+
+    test('request exception is swallowed and yields empty list', () async {
+      final api = _apiReturning((_) => throw const SocketExceptionLike());
+      expect(await api.listImages('/DCIM'), isEmpty);
+    });
+
+    test('timeout yields empty list', () async {
+      final api = CameraApi(
+        client: MockClient((_) async {
+          // Never completes within the request timeout window.
+          await Future<void>.delayed(const Duration(seconds: 30));
+          return http.Response('', 200);
+        }),
+      );
+      expect(await api.listImages('/DCIM'), isEmpty);
+    });
+  });
+
+  group('CameraApi.listImages — parsing', () {
+    test('parses valid records and skips malformed/short lines', () async {
+      // Valid FAT date: 2024-06-15 → ((44<<9)|(6<<5)|15) = 22735, time 0 invalid
+      // (seconds ok, hour 0). Use a known-good encoding.
+      const date = (44 << 9) | (6 << 5) | 15; // 2024-06-15
+      const time = (12 << 11); // 12:00:00
+      final body = [
+        'VER,100', // header line, skipped
+        '/DCIM/100OLYMP,P1.JPG,2048,0,$date,$time',
+        'too,few,fields', // < 6 parts, skipped
+        '/DCIM/100OLYMP,BAD.JPG,notanumber,0,$date,$time', // parse error, skipped
+        '/DCIM/100OLYMP,HID.JPG,100,2,$date,$time', // hidden attr, skipped
+      ].join('\r\n');
+
+      final api = _apiReturning((_) => http.Response(body, 200));
+      final files = await api.listImages('/DCIM');
+      expect(files.map((f) => f.filename), ['P1.JPG']);
+      expect(files.first.size, 2048);
+    });
+
+    test('skips records with corrupt FAT dates', () async {
+      // month 0 → decodeFatDateTime returns null → record skipped.
+      const badDate = (44 << 9) | 1; // month 0, day 1
+      final body = '/DCIM/100OLYMP,X.JPG,100,0,$badDate,0';
+      final api = _apiReturning((_) => http.Response(body, 200));
+      expect(await api.listImages('/DCIM'), isEmpty);
+    });
+  });
+
+  group('CameraApi.deleteFile', () {
+    test('returns true on HTTP 200 with clean body', () async {
+      final api = _apiReturning((_) => http.Response('OK', 200));
+      expect(await api.deleteFile(_file('P1.JPG')), isTrue);
+    });
+
+    test('returns false on non-200 status', () async {
+      final api = _apiReturning((_) => http.Response('', 403));
+      expect(await api.deleteFile(_file('P1.JPG')), isFalse);
+    });
+
+    test('returns false when 200 body contains error text', () async {
+      final api = _apiReturning((_) => http.Response('ERROR: locked', 200));
+      expect(await api.deleteFile(_file('P1.JPG')), isFalse);
+    });
+
+    test('returns false when the request throws', () async {
+      final api = _apiReturning((_) => throw const SocketExceptionLike());
+      expect(await api.deleteFile(_file('P1.JPG')), isFalse);
+    });
+  });
+
+  group('CameraApi.deleteFiles', () {
+    test('aggregates success and failure counts', () async {
+      // Fail any request for P2.JPG, succeed otherwise.
+      final api = _apiReturning((req) {
+        if (req.url.toString().contains('P2.JPG')) {
+          return http.Response('', 500);
+        }
+        return http.Response('OK', 200);
+      });
+      final result = await api.deleteFiles(
+        [_file('P1.JPG'), _file('P2.JPG'), _file('P3.JPG')],
+      );
+      expect(result.success, 2);
+      expect(result.failed, 1);
+    });
+  });
+}
+
+/// A simple throwable to simulate a network failure without importing dart:io.
+class SocketExceptionLike implements Exception {
+  const SocketExceptionLike();
+  @override
+  String toString() => 'SocketExceptionLike: simulated network failure';
+}

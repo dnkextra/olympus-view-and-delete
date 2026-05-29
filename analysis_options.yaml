@@ -1,1 +1,28 @@
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Logging must go through AppLogger, never raw print(). Treat as a hard error.
+    avoid_print: error
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "lib/l10n/**"
+
+linter:
+  rules:
+    # Logging / debugging hygiene
+    avoid_print: true
+    # Async safety (matches issues already flagged in this codebase)
+    use_build_context_synchronously: true
+    unawaited_futures: true
+    # Resource handling
+    cancel_subscriptions: true
+    close_sinks: true
+    # Readability & maintainability
+    prefer_final_locals: true
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    directives_ordering: true
+    # API documentation: encourage doc comments on public members
+    public_member_api_docs: false

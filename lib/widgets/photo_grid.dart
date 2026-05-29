@@ -1,7 +1,21 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+
+import '../constants.dart';
 import '../services/camera_api.dart';
 import '../services/thumbnail_manager.dart';
+
+/// Shared decoration for grid/list items: rounded corners, a selection
+/// border (width differs per layout) and a tinted background when selected.
+BoxDecoration _itemDecoration({required bool selected, required double borderWidth}) {
+  return BoxDecoration(
+    borderRadius: BorderRadius.circular(8),
+    border:
+        selected ? Border.all(color: kPrimaryColor, width: borderWidth) : null,
+    color: selected ? kPrimaryColor.withOpacity(0.15) : kBackgroundColor,
+  );
+}
 
 class PhotoGrid extends StatefulWidget {
   final List<CameraFile> files;
@@ -121,15 +135,7 @@ class _GridItem extends StatelessWidget {
       onTap: selectionMode ? onTap : onPreview,
       onLongPress: onLongPress,
       child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: selected
-              ? Border.all(color: const Color(0xFFE94560), width: 2)
-              : null,
-          color: selected
-              ? const Color(0xFFE94560).withOpacity(0.15)
-              : const Color(0xFF1A1A2E),
-        ),
+        decoration: _itemDecoration(selected: selected, borderWidth: 2),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -152,7 +158,7 @@ class _GridItem extends StatelessWidget {
                         height: 24,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Color(0xFFE94560),
+                          color: kPrimaryColor,
                         ),
                         child: const Icon(Icons.check,
                             color: Colors.white, size: 16),
@@ -212,15 +218,7 @@ class _ListItem extends StatelessWidget {
       onLongPress: onLongPress,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: selected
-              ? Border.all(color: const Color(0xFFE94560), width: 1)
-              : null,
-          color: selected
-              ? const Color(0xFFE94560).withOpacity(0.15)
-              : const Color(0xFF1A1A2E),
-        ),
+        decoration: _itemDecoration(selected: selected, borderWidth: 1),
         clipBehavior: Clip.antiAlias,
         child: Row(
           children: [
@@ -262,7 +260,7 @@ class _ListItem extends StatelessWidget {
               Container(
                 width: 40,
                 height: 72,
-                color: const Color(0xFFE94560),
+                color: kPrimaryColor,
                 child: const Icon(Icons.check, color: Colors.white),
               ),
           ],

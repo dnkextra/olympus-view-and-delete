@@ -1,20 +1,24 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'dart:async';
-import 'package:wifi_iot/wifi_iot.dart';
+
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:wifi_iot/wifi_iot.dart';
+
+import '../constants.dart';
+import '../services/app_logger.dart';
 import '../services/camera_api.dart';
+import '../services/connection_history.dart';
 import '../services/file_saver.dart' as file_saver;
 import '../services/thumbnail_manager.dart';
-import '../services/connection_history.dart';
-import '../widgets/photo_grid.dart';
+import '../version.dart';
 import '../widgets/date_filter_sheet.dart';
 import '../widgets/delete_progress_dialog.dart';
 import '../widgets/download_progress_dialog.dart';
-import 'qr_scan_screen.dart';
+import '../widgets/photo_grid.dart';
 import 'photo_preview_screen.dart';
-import '../version.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'qr_scan_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _connected = false;
   String? _error;
   String _cameraModel = '';
-  String _statusMessage = '';
+  String _statusMessage = AppStrings.checkingCamera;
 
   // Selection
   bool _selectionMode = false;
@@ -77,17 +81,17 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _loading = true;
       _error = null;
-      _statusMessage = 'Checking camera...';
+      _statusMessage = AppStrings.checkingCamera;
     });
 
     // Quick check if camera is already reachable. Use a short timeout so the
     // error screen appears fast when nothing responds.
     final alreadyConnected = await _api.testConnection(
-      timeout: const Duration(milliseconds: 1500),
+      timeout: Duration(milliseconds: kCameraConnectTimeoutMs),
     );
     if (!mounted) return;
     if (alreadyConnected) {
-      _loadFiles(skipConnectionTest: true);
+      unawaited(_loadFiles(skipConnectionTest: true));
       return;
     }
 
@@ -97,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (history.isNotEmpty) {
         final last = history.first;
         final name = last.cameraName ?? last.ssid;
-        setState(() => _statusMessage = 'Connecting to $name...');
+        setState(() => _statusMessage = '${AppStrings.connectingTo} $name...');
         try {
           await Permission.location.request();
           final wifiOk = await WiFiForIoTPlugin.connect(
@@ -112,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
             withInternet: false,
           );
           if (wifiOk && mounted) {
-            setState(() => _statusMessage = 'WiFi connected, reaching camera...');
+            setState(() => _statusMessage = AppStrings.wifiConnected);
             await WiFiForIoTPlugin.forceWifiUsage(true);
             await ConnectionHistory.save(SavedConnection(
               ssid: last.ssid,
@@ -124,13 +128,16 @@ class _HomeScreenState extends State<HomeScreen> {
               lastConnected: DateTime.now(),
             ));
             if (mounted) {
-              _loadFiles();
+              unawaited(_loadFiles());
               return;
             }
           } else if (mounted) {
-            setState(() => _statusMessage = 'WiFi connection failed');
+            setState(() => _statusMessage = AppStrings.wifiFailed);
           }
-        } catch (_) {}
+        } catch (e, st) {
+          AppLogger.warning('auto-connect attempt failed',
+              name: 'home_screen', error: e, stackTrace: st);
+        }
       }
     }
 
@@ -138,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       setState(() {
         _loading = false;
-        _error = 'Cannot connect to camera.\nConnect to camera WiFi first.';
+        _error = AppStrings.cannotConnect;
       });
     }
   }
@@ -163,11 +170,11 @@ class _HomeScreenState extends State<HomeScreen> {
       // Skipped when the caller just successfully probed the camera.
       bool ok = skipConnectionTest;
       if (!skipConnectionTest) {
-        if (mounted) setState(() => _statusMessage = 'Connecting to camera...');
+        if (mounted) setState(() => _statusMessage = AppStrings.connectingTo);
         for (int attempt = 0; attempt < 3; attempt++) {
           ok = await _api.testConnection();
           if (ok || !mounted || generation != _loadGeneration) break;
-          if (mounted) setState(() => _statusMessage = 'Retrying... (${attempt + 1}/3)');
+          if (mounted) setState(() => _statusMessage = '${AppStrings.retrying} (${attempt + 1}/3)');
           if (attempt < 2) await Future.delayed(const Duration(seconds: 1));
         }
       }
@@ -175,11 +182,11 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => _connected = ok);
       if (!ok) {
         setState(() =>
-            _error = 'Cannot connect to camera.\nConnect to camera WiFi first.');
+          _error = AppStrings.cannotConnect);
         return;
       }
 
-      if (mounted) setState(() => _statusMessage = 'Loading camera info...');
+      if (mounted) setState(() => _statusMessage = AppStrings.loadingCameraInfo);
       try {
         final info = await _api.getCameraInfo();
         if (mounted && generation == _loadGeneration) {
@@ -202,16 +209,21 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        // Camera info is best-effort; failing here shouldn't block the list.
+        AppLogger.debug('getCameraInfo failed (non-fatal): $e',
+            name: 'home_screen');
+      }
 
-      if (mounted) setState(() => _statusMessage = 'Loading file list...');
+      if (mounted) setState(() => _statusMessage = AppStrings.loadingFileList);
       final files = await _api.listAllFiles(
         onBatch: (batch) {
           if (!mounted || generation != _loadGeneration) return;
           // Coalesce rapid batches: accumulate and flush on a timer so we
           // don't re-filter the growing list on every CGI response.
           _pendingBatch.addAll(batch);
-          _batchFlushTimer ??= Timer(const Duration(milliseconds: 150), () {
+          _batchFlushTimer ??=
+              Timer(const Duration(milliseconds: kBatchFlushMs), () {
             _batchFlushTimer = null;
             if (!mounted || generation != _loadGeneration) {
               _pendingBatch.clear();
@@ -366,7 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
             btPasscode: conn.btPasscode,
             lastConnected: DateTime.now(),
           ));
-          if (mounted) _loadFiles();
+          if (mounted) unawaited(_loadFiles());
         } else {
           if (mounted) {
             setState(() {
@@ -375,7 +387,9 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           }
         }
-      } catch (e) {
+      } catch (e, st) {
+        AppLogger.warning('connectFromSaved failed',
+            name: 'home_screen', error: e, stackTrace: st);
         if (mounted) {
           setState(() {
             _loading = false;
@@ -384,7 +398,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } else {
-      _loadFiles();
+      unawaited(_loadFiles());
     }
   }
 
@@ -439,7 +453,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (_) => const QrScanScreen()),
     );
     if (connected == true && mounted) {
-      _loadFiles();
+      unawaited(_loadFiles());
     }
   }
 
@@ -493,15 +507,49 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Show a transient message in the current scaffold.
+  void _showSnack(String message, {Duration? duration}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: duration ?? const Duration(seconds: 4)),
+    );
+  }
+
+  /// Show a yes/no confirmation dialog. Returns true only if confirmed.
+  Future<bool> _confirm({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required Color confirmColor,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kBackgroundColor,
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(AppStrings.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: confirmColor),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   Future<void> _handleDownload() async {
     final toDownload = _filteredFiles
         .where((f) => _selectedPaths.contains(f.fullPath))
         .toList();
 
     if (toDownload.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select files to download first')),
-      );
+      _showSnack(AppStrings.downloadFirst);
       return;
     }
 
@@ -509,30 +557,15 @@ class _HomeScreenState extends State<HomeScreen> {
         toDownload.fold<int>(0, (sum, f) => sum + f.size);
     final sizeStr = CameraFile.formatSize(totalSize);
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Download Files'),
-        content: Text(
-          'Download ${toDownload.length} file(s) ($sizeStr)?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF2ECC71)),
-            child: const Text('DOWNLOAD'),
-          ),
-        ],
-      ),
+    final confirmed = await _confirm(
+      title: AppStrings.downloadFiles,
+      message:
+          '${AppStrings.downloadFiles} ${toDownload.length} file(s) ($sizeStr)?',
+      confirmLabel: AppStrings.download,
+      confirmColor: kAccentColor,
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     // Get save directory
     final saveDirPath = await file_saver.getSaveDirectory();
@@ -554,13 +587,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _exitSelectionMode();
 
     if (result != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Downloaded: ${result.success}, Failed: ${result.failed}'
-              '${kIsWeb ? '' : '\nSaved to: $saveDirPath'}'),
-          duration: const Duration(seconds: 4),
-        ),
+      _showSnack(
+        'Downloaded: ${result.success}, Failed: ${result.failed}'
+        '${kIsWeb ? '' : '\nSaved to: $saveDirPath'}',
       );
     }
   }
@@ -571,9 +600,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList();
 
     if (toDelete.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select files to delete first')),
-      );
+      _showSnack(AppStrings.deleteFirst);
       return;
     }
 
@@ -581,29 +608,15 @@ class _HomeScreenState extends State<HomeScreen> {
         toDelete.fold<int>(0, (sum, f) => sum + f.size);
     final sizeStr = CameraFile.formatSize(totalSize);
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('Delete Files'),
-        content: Text(
-          'Delete ${toDelete.length} file(s) ($sizeStr)?\n\nThis cannot be undone!',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('DELETE'),
-          ),
-        ],
-      ),
+    final confirmed = await _confirm(
+      title: AppStrings.deleteFiles,
+      message:
+          '${AppStrings.deleteFiles} ${toDelete.length} file(s) ($sizeStr)?\n\nThis cannot be undone!',
+      confirmLabel: AppStrings.delete,
+      confirmColor: kErrorColor,
     );
 
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     final result = await showDialog<({int success, int failed})>(
       context: context,
@@ -619,13 +632,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _exitSelectionMode();
 
     if (result != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Deleted: ${result.success}, Failed: ${result.failed}'),
-        ),
-      );
-      _loadFiles();
+      _showSnack('Deleted: ${result.success}, Failed: ${result.failed}');
+      unawaited(_loadFiles());
     }
   }
 
@@ -638,9 +646,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(color: Color(0xFFE94560)),
+              const CircularProgressIndicator(color: kPrimaryColor),
               const SizedBox(height: 16),
-              Text(_statusMessage.isNotEmpty ? _statusMessage : 'Connecting...',
+              Text(_statusMessage.isNotEmpty ? _statusMessage : AppStrings.connectingTo,
                   style: TextStyle(color: Colors.grey[500])),
             ],
           ),
@@ -680,11 +688,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.white,
                       ),
                       label: Text(
-                        _isMobilePlatform() ? 'Scan QR Code' : 'Connect WiFi',
+                        _isMobilePlatform() ? AppStrings.scanQr : AppStrings.connectWifi,
                         style: const TextStyle(color: Colors.white, fontSize: 16),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2ECC71),
+                        backgroundColor: kAccentColor,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
@@ -696,7 +704,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _initLoad,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Retry Connection'),
+                    label: const Text(AppStrings.retryConnection),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       side: BorderSide(color: Colors.grey[600]!),
@@ -712,15 +720,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     return Column(
                       children: [
                         const SizedBox(height: 32),
-                        const Divider(color: Color(0xFF333355)),
+                        const Divider(color: kBorderColor),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.history, color: Color(0xFFE94560), size: 18),
+                            const Icon(Icons.history, color: kPrimaryColor, size: 18),
                             const SizedBox(width: 8),
                             const Text(
-                              'Saved cameras',
+                              AppStrings.savedCameras,
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                             ),
                           ],
@@ -733,13 +741,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1A1A2E),
+                                  color: kBackgroundColor,
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: const Color(0xFF333355)),
+                                  border: Border.all(color: kBorderColor),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.wifi, color: Color(0xFF2ECC71), size: 22),
+                                    const Icon(Icons.wifi, color: kAccentColor, size: 22),
                                     const SizedBox(width: 14),
                                     Expanded(
                                       child: Column(
@@ -776,10 +784,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
-              ],
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
           ),
         ),
       );
@@ -992,7 +1000,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         );
                         if (deleted == true && mounted) {
-                          _loadFiles();
+                          unawaited(_loadFiles());
                         }
                       },
                     ),

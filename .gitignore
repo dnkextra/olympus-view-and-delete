@@ -42,6 +42,12 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Gradle cache (should never be committed)
+/android/.gradle/
+
+# Local working notes (not part of the release)
+/plan.md
+
 # Windows build
 /windows/flutter/ephemeral/
 

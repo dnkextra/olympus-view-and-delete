@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../constants.dart';
+import '../services/app_logger.dart';
 import '../services/camera_api.dart';
 
 class DeleteProgressDialog extends StatefulWidget {
@@ -42,8 +45,10 @@ class _DeleteProgressDialogState extends State<DeleteProgressDialog> {
           }
         },
       );
-    } catch (_) {
-      // Swallow — result stays null, dialog pops in finally.
+    } catch (e, st) {
+      AppLogger.warning('batch delete failed',
+          name: 'delete_dialog', error: e, stackTrace: st);
+      // result stays null, dialog pops in finally.
     } finally {
       if (mounted) {
         Navigator.of(context).pop(result);
@@ -56,7 +61,7 @@ class _DeleteProgressDialogState extends State<DeleteProgressDialog> {
     final progress = _total > 0 ? _done / _total : 0.0;
 
     return AlertDialog(
-      backgroundColor: const Color(0xFF1A1A2E),
+      backgroundColor: kBackgroundColor,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -67,13 +72,13 @@ class _DeleteProgressDialogState extends State<DeleteProgressDialog> {
             child: CircularProgressIndicator(
               value: progress,
               strokeWidth: 4,
-              color: const Color(0xFFE94560),
+              color: kPrimaryColor,
               backgroundColor: const Color(0xFF252540),
             ),
           ),
           const SizedBox(height: 20),
           const Text(
-            'Deleting files...',
+            'Deleting files...', // TODO: локализация
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),

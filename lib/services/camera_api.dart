@@ -1,34 +1,20 @@
 import 'package:http/http.dart' as http;
+import 'app_logger.dart';
 import 'file_saver.dart' as file_saver;
+import 'filename_sanitizer.dart';
+import 'service_config.dart';
+
+export 'filename_sanitizer.dart' show sanitizeFilename;
 
 const String cameraIp = '192.168.0.10';
 const String baseUrl = 'http://$cameraIp';
-const Duration timeout = Duration(seconds: 10);
-const Duration downloadTimeout = Duration(seconds: 120);
+const Duration timeout = kCameraRequestTimeout;
+const Duration downloadTimeout = kCameraDownloadTimeout;
 
 /// Maximum directory recursion depth in [CameraApi.listImages].
 /// Protects against cycles / malformed camera responses that could
 /// otherwise blow the stack.
 const int _maxDirDepth = 8;
-
-/// Return a filename safe to append to a local directory, stripping any
-/// path separators, `..`, NUL bytes, and control characters. Used to
-/// defend against path traversal via a hostile/corrupt camera response.
-String sanitizeFilename(String raw) {
-  // Keep only the last path segment; reject any separator chars.
-  final base = raw.split(RegExp(r'[/\\]')).last;
-  final cleaned = base
-      .replaceAll('\u0000', '')
-      .replaceAll(RegExp(r'[\x00-\x1F]'), '')
-      .replaceAll(RegExp(r'[<>:"|?*]'), '_')
-      .trim();
-  // Reject traversal and empty/dot-only names.
-  if (cleaned.isEmpty || cleaned == '.' || cleaned == '..') {
-    return 'file_${DateTime.now().millisecondsSinceEpoch}';
-  }
-  // Cap length to something sane.
-  return cleaned.length > 180 ? cleaned.substring(0, 180) : cleaned;
-}
 
 class CameraFile {
   final String directory;
@@ -54,7 +40,7 @@ class CameraFile {
   String get fullPath => '$directory/$filename';
   String get thumbnailUrl => '$baseUrl/get_thumbnail.cgi?DIR=$fullPath';
   String get screennailUrl => '$baseUrl/get_screennail.cgi?DIR=$fullPath';
-  String resizeImgUrl([int size = 1920]) =>
+  String resizeImgUrl([int size = kPreviewImageSize]) =>
       '$baseUrl/get_resizeimg.cgi?DIR=$fullPath&size=$size';
   String get downloadUrl => '$baseUrl$fullPath';
 
@@ -107,7 +93,11 @@ class CameraFile {
 }
 
 class CameraApi {
-  final http.Client _client = http.Client();
+  /// Creates a camera API client. Pass [client] to inject a mock/fake
+  /// `http.Client` in tests; production code uses the default real client.
+  CameraApi({http.Client? client}) : _client = client ?? http.Client();
+
+  final http.Client _client;
 
   Map<String, String> get _headers => {
         'User-Agent': 'OI.Share v2',
@@ -120,14 +110,14 @@ class CameraApi {
   /// [timeout] controls how long to wait for a reply. Use a short value
   /// (e.g. 1.5s) for the initial startup probe so the error screen appears
   /// quickly when no camera is on the network.
-  Future<bool> testConnection(
-      {Duration timeout = const Duration(seconds: 5)}) async {
+  Future<bool> testConnection({Duration timeout = kCameraProbeTimeout}) async {
     try {
       await _client
           .get(Uri.parse('$baseUrl/get_caminfo.cgi'), headers: _headers)
           .timeout(timeout);
       return true;
-    } catch (_) {
+    } catch (e) {
+      AppLogger.debug('testConnection failed: $e', name: 'camera_api');
       return false;
     }
   }
@@ -168,7 +158,9 @@ class CameraApi {
           .get(Uri.parse('$baseUrl/get_imglist.cgi?DIR=$dir'),
               headers: _headers)
           .timeout(timeout);
-    } catch (_) {
+    } catch (e) {
+      AppLogger.warning('listImages($dir) request failed: $e',
+          name: 'camera_api');
       return []; // empty or inaccessible directory
     }
 
@@ -215,7 +207,9 @@ class CameraApi {
           );
           immediateFiles.add(file);
         }
-      } catch (_) {
+      } catch (e) {
+        AppLogger.debug('skipping malformed imglist record: $e',
+            name: 'camera_api');
         continue;
       }
     }
@@ -242,13 +236,13 @@ class CameraApi {
   Future<List<CameraFile>> listAllFiles({void Function(List<CameraFile>)? onBatch}) async {
     try {
       await switchMode('play');
-    } catch (e) {
+    } catch (e, st) {
       // Non-fatal: camera may already be in play mode. Log for diagnostics.
-      // ignore: avoid_print
-      print('switchMode(play) failed (continuing): $e');
+      AppLogger.warning('switchMode(play) failed (continuing)',
+          name: 'camera_api', error: e, stackTrace: st);
     }
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(kCameraModeSwitchDelay);
 
     final allFiles = await listImages('/DCIM', onBatch: onBatch);
 
@@ -270,7 +264,9 @@ class CameraApi {
       final body = resp.body.toLowerCase();
       if (body.contains('error') || body.contains('fail')) return false;
       return true;
-    } catch (_) {
+    } catch (e) {
+      AppLogger.warning('deleteFile(${file.fullPath}) failed: $e',
+          name: 'camera_api');
       return false;
     }
   }
@@ -324,7 +320,9 @@ class CameraApi {
           safeName, bytes, saveDirPath);
         savedPaths.add(savedPath);
         success++;
-      } catch (_) {
+      } catch (e, st) {
+        AppLogger.warning('download/save failed for ${files[i].filename}',
+            name: 'camera_api', error: e, stackTrace: st);
         failed++;
       }
     }

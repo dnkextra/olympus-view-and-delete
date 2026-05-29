@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'l10n/app_localizations.dart';
+import 'l10n/l10n.dart';
 import 'screens/home_screen.dart';
 
 void main() {
@@ -11,7 +14,6 @@ class OlympusApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Olympus View',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
@@ -26,12 +28,15 @@ class OlympusApp extends StatelessWidget {
           backgroundColor: Color(0xFF1A1A2E),
           elevation: 0,
         ),
-        cardTheme: const CardTheme(
+        cardTheme: const CardThemeData(
           color: Color(0xFF1A1A2E),
           elevation: 0,
         ),
         useMaterial3: true,
       ),
+      localizationsDelegates: localizationsDelegates,
+      supportedLocales: L10n.all,
+      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
       home: const HomeScreen(),
     );
   }

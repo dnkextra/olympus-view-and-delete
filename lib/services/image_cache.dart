@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_logger.dart';
+import 'service_config.dart';
+
 /// Persistent disk cache for camera images (thumbnails + previews).
 /// Keeps the last [maxImages] images cached across all resolutions.
 /// Each image key is the file's fullPath (e.g. /DCIM/100OLYMP/P1010001.JPG).
@@ -13,7 +16,7 @@ class ImageDiskCache {
   static final ImageDiskCache instance = ImageDiskCache._();
   ImageDiskCache._();
 
-  static const int maxImages = 150;
+  static const int maxImages = kMaxCacheImages;
   static const String _lruKey = 'image_cache_lru';
 
   Directory? _cacheDir;
@@ -54,9 +57,12 @@ class ImageDiskCache {
   /// hit SharedPreferences on every thumbnail view.
   void _scheduleLruSave() {
     _lruSaveTimer?.cancel();
-    _lruSaveTimer = Timer(const Duration(seconds: 2), () {
+    _lruSaveTimer = Timer(kLruSaveDebounce, () {
       _lruSaveTimer = null;
-      _saveLru().catchError((_) {});
+      _saveLru().catchError((Object e, StackTrace st) {
+        AppLogger.warning('LRU save failed',
+            name: 'image_cache', error: e, stackTrace: st);
+      });
     });
   }
 
@@ -86,7 +92,10 @@ class ImageDiskCache {
       if (await file.exists()) {
         try {
           await file.delete();
-        } catch (_) {}
+        } catch (e) {
+          AppLogger.debug('failed to delete cache variant $variant: $e',
+              name: 'image_cache');
+        }
       }
     }
   }
