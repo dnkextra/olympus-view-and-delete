@@ -592,6 +592,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!confirmed || !mounted) return;
 
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      await Permission.notification.request();
+    }
+
     // Get save directory
     final saveDirPath = await file_saver.getSaveDirectory();
     await file_saver.ensureDirectory(saveDirPath);

@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 
 import '../constants.dart';
 import '../services/app_logger.dart';
 import '../services/camera_api.dart';
+import '../services/download_foreground_service.dart';
 import '../services/file_saver.dart' as file_saver;
 import '../services/image_cache.dart';
 import '../services/service_config.dart';
@@ -103,7 +106,19 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     final file = _files[_currentIndex];
     setState(() => _busy = true);
     try {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        await Permission.notification.request();
+      }
+      await DownloadForegroundService.start(
+        total: 1,
+        currentFile: file.filename,
+      );
       final bytes = await _api.downloadFile(file);
+      await DownloadForegroundService.update(
+        done: 1,
+        total: 1,
+        currentFile: file.filename,
+      );
       final saveDirPath = kIsWeb ? null : await file_saver.getSaveDirectory();
       await file_saver.saveFileToDevice(file.filename, bytes, saveDirPath);
       if (!mounted) return;
@@ -116,6 +131,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         SnackBar(content: Text('${AppStrings.download} failed: $e')),
       );
     } finally {
+      await DownloadForegroundService.stop();
       if (mounted) setState(() => _busy = false);
     }
   }

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
 import '../services/app_logger.dart';
 import '../services/camera_api.dart';
+import '../services/download_foreground_service.dart';
 
 class DownloadProgressDialog extends StatefulWidget {
   final CameraApi api;
@@ -35,10 +38,18 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
   Future<void> _startDownload() async {
     ({int success, int failed, List<String> savedPaths})? result;
     try {
+      await DownloadForegroundService.start(total: widget.files.length);
       result = await widget.api.downloadFiles(
         widget.files,
         widget.saveDirPath,
         onProgress: (done, total, filename) {
+          unawaited(
+            DownloadForegroundService.update(
+              done: done,
+              total: total,
+              currentFile: filename,
+            ),
+          );
           if (mounted) {
             setState(() {
               _done = done;
@@ -54,6 +65,7 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
       // result stays null, dialog pops in finally. Caller shows a generic
       // snackbar when result is null.
     } finally {
+      await DownloadForegroundService.stop();
       if (mounted) {
         Navigator.of(context).pop(result);
       }
