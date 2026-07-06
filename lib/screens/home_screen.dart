@@ -569,6 +569,19 @@ class _HomeScreenState extends State<HomeScreen> {
     return confirmed == true;
   }
 
+  Future<bool> _confirmBulkDelete(String message) async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => _BulkDeleteConfirmDialog(
+        controller: controller,
+        message: message,
+      ),
+    );
+    controller.dispose();
+    return confirmed == true;
+  }
+
   Future<void> _handleDownload() async {
     final toDownload = _filteredFiles
         .where((f) => _selectedPaths.contains(f.fullPath))
@@ -635,14 +648,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final totalSize = toDelete.fold<int>(0, (sum, f) => sum + f.size);
     final sizeStr = CameraFile.formatSize(totalSize);
+    final message =
+        '${AppStrings.deleteFiles} ${toDelete.length} file(s) ($sizeStr)?\n\nThis cannot be undone!';
 
-    final confirmed = await _confirm(
-      title: AppStrings.deleteFiles,
-      message:
-          '${AppStrings.deleteFiles} ${toDelete.length} file(s) ($sizeStr)?\n\nThis cannot be undone!',
-      confirmLabel: AppStrings.delete,
-      confirmColor: kErrorColor,
-    );
+    final confirmed = toDelete.length > 10
+        ? await _confirmBulkDelete(message)
+        : await _confirm(
+            title: AppStrings.deleteFiles,
+            message: message,
+            confirmLabel: AppStrings.delete,
+            confirmColor: kErrorColor,
+          );
 
     if (!confirmed || !mounted) return;
 
@@ -1104,11 +1120,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           setState(() => _selectionMode = true);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE74C3C),
+                          backgroundColor: const Color(0xFF0F3460),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text('Select All & Delete',
-                            style: TextStyle(color: Colors.white)),
+                        child: const Text(
+                          AppStrings.selectAll,
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
                   ],
@@ -1116,6 +1134,80 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             )
           : null,
+    );
+  }
+}
+
+class _BulkDeleteConfirmDialog extends StatefulWidget {
+  final TextEditingController controller;
+  final String message;
+
+  const _BulkDeleteConfirmDialog({
+    required this.controller,
+    required this.message,
+  });
+
+  @override
+  State<_BulkDeleteConfirmDialog> createState() =>
+      _BulkDeleteConfirmDialogState();
+}
+
+class _BulkDeleteConfirmDialogState extends State<_BulkDeleteConfirmDialog> {
+  bool get _canDelete => widget.controller.text == 'delete';
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: kBackgroundColor,
+      title: const Text(AppStrings.deleteFiles),
+      content: _BulkDeleteConfirmContent(
+        controller: widget.controller,
+        message: widget.message,
+        onChanged: () => setState(() {}),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text(AppStrings.cancel),
+        ),
+        TextButton(
+          onPressed: _canDelete ? () => Navigator.pop(context, true) : null,
+          style: TextButton.styleFrom(foregroundColor: kErrorColor),
+          child: const Text(AppStrings.delete),
+        ),
+      ],
+    );
+  }
+}
+
+class _BulkDeleteConfirmContent extends StatelessWidget {
+  final TextEditingController controller;
+  final String message;
+  final VoidCallback onChanged;
+
+  const _BulkDeleteConfirmContent({
+    required this.controller,
+    required this.message,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(message),
+        const SizedBox(height: 16),
+        TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Type "delete" to confirm',
+          ),
+          onChanged: (_) => onChanged(),
+        ),
+      ],
     );
   }
 }
