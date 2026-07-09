@@ -58,6 +58,18 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
   // Track whether we own the API and must dispose it.
   late final bool _ownsApi;
   bool _busy = false;
+  bool _pinching = false;
+  int _pointersDown = 0;
+
+  void _onPointerDown() {
+    _pointersDown++;
+    if (_pointersDown > 1 && !_pinching) setState(() => _pinching = true);
+  }
+
+  void _onPointerUp() {
+    if (_pointersDown > 0) _pointersDown--;
+    if (_pointersDown == 0 && _pinching) setState(() => _pinching = false);
+  }
 
   @override
   void initState() {
@@ -327,69 +339,78 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
             const SizedBox(width: 4),
           ],
         ),
-        body: PageView.builder(
-          controller: _pageController,
-          itemCount: _files.length,
-          onPageChanged: _onPageChanged,
-          itemBuilder: (context, index) {
-            final key = _files[index].fullPath;
-            final bytes = _imageCache[key];
-            final isLoading = _loading.contains(key);
-            final isError = _error.contains(key);
+        // Count raw pointers below the gesture arena: a second finger must
+        // disable PageView scrolling even if the first finger's drag already
+        // won the arena (one-finger-first pinch).
+        body: Listener(
+          onPointerDown: (_) => _onPointerDown(),
+          onPointerUp: (_) => _onPointerUp(),
+          onPointerCancel: (_) => _onPointerUp(),
+          child: PageView.builder(
+            controller: _pageController,
+            physics: _pinching ? const NeverScrollableScrollPhysics() : null,
+            itemCount: _files.length,
+            onPageChanged: _onPageChanged,
+            itemBuilder: (context, index) {
+              final key = _files[index].fullPath;
+              final bytes = _imageCache[key];
+              final isLoading = _loading.contains(key);
+              final isError = _error.contains(key);
 
-            if (isError && bytes == null) {
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.broken_image, color: Colors.grey, size: 64),
-                    SizedBox(height: 12),
-                    Text('Failed to load preview',
-                        style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              );
-            }
-
-            if (isLoading && bytes == null) {
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: CircularProgressIndicator(
-                        color: kPrimaryColor,
-                        strokeWidth: 3,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    Text('Loading preview...',
-                        style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              );
-            }
-
-            if (bytes != null) {
-              return InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Center(
-                  child: Image.memory(
-                    bytes,
-                    fit: BoxFit.contain,
-                    // Decode at display resolution to reduce decoded-image memory.
-                    cacheWidth: kPreviewImageSize,
-                    gaplessPlayback: true,
+              if (isError && bytes == null) {
+                return const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.broken_image, color: Colors.grey, size: 64),
+                      SizedBox(height: 12),
+                      Text('Failed to load preview',
+                          style: TextStyle(color: Colors.grey)),
+                    ],
                   ),
-                ),
-              );
-            }
+                );
+              }
 
-            return const SizedBox.shrink();
-          },
+              if (isLoading && bytes == null) {
+                return const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: CircularProgressIndicator(
+                          color: kPrimaryColor,
+                          strokeWidth: 3,
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      Text('Loading preview...',
+                          style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                );
+              }
+
+              if (bytes != null) {
+                return InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Center(
+                    child: Image.memory(
+                      bytes,
+                      fit: BoxFit.contain,
+                      // Decode at display resolution to reduce decoded-image memory.
+                      cacheWidth: kPreviewImageSize,
+                      gaplessPlayback: true,
+                    ),
+                  ),
+                );
+              }
+
+              return const SizedBox.shrink();
+            },
+          ),
         ),
       ),
     );
