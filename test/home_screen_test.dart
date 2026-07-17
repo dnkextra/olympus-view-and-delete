@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:olympus_tg6_manager/l10n/l10n.dart';
 import 'package:olympus_tg6_manager/screens/home_screen.dart';
 import 'package:olympus_tg6_manager/services/camera_api.dart';
+import 'package:olympus_tg6_manager/services/download_registry.dart';
 import 'package:olympus_tg6_manager/services/locale_controller.dart';
 import 'package:olympus_tg6_manager/services/thumbnail_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -91,6 +92,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    DownloadRegistry.instance.resetForTests();
     file = _file('P0000001.JPG');
   });
 
@@ -120,4 +122,23 @@ void main() {
     expect(find.text('1 selected'), findsNothing);
     expect(find.text('Test camera'), findsOneWidget);
   });
+
+  testWidgets('previously downloaded file shows the downloaded badge',
+      (tester) async {
+    await DownloadRegistry.instance.markDownloaded(file.downloadKey);
+    await _pumpHome(tester, file);
+
+    expect(find.byIcon(Icons.download_done), findsOneWidget);
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  testWidgets('badge appears live when a file is marked downloaded',
+      (tester) async {
+    await _pumpHome(tester, file);
+    expect(find.byIcon(Icons.download_done), findsNothing);
+
+    await DownloadRegistry.instance.markDownloaded(file.downloadKey);
+    await tester.pump();
+
+    expect(find.byIcon(Icons.download_done), findsOneWidget);
+  }, timeout: const Timeout(Duration(seconds: 30)));
 }

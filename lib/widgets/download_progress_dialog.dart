@@ -6,6 +6,7 @@ import '../constants.dart';
 import '../services/app_logger.dart';
 import '../services/camera_api.dart';
 import '../services/download_foreground_service.dart';
+import '../services/download_registry.dart';
 
 class DownloadProgressDialog extends StatefulWidget {
   final CameraApi api;
@@ -58,6 +59,9 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
             });
           }
         },
+        onFileSaved: (file) => unawaited(
+          DownloadRegistry.instance.markDownloaded(file.downloadKey),
+        ),
       );
     } catch (e, st) {
       AppLogger.warning('batch download failed',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -70,6 +71,36 @@ void main() {
       final body = '/DCIM/100OLYMP,X.JPG,100,0,$badDate,0';
       final api = _apiReturning((_) => http.Response(body, 200));
       expect(await api.listImages('/DCIM'), isEmpty);
+    });
+  });
+
+  group('CameraApi.downloadFile', () {
+    test('throws on a non-success HTTP response', () async {
+      final api = _apiReturning((_) => http.Response('Not found', 404));
+
+      await expectLater(
+        api.downloadFile(_file('P1.JPG')),
+        throwsA(isA<http.ClientException>()),
+      );
+    });
+  });
+
+  group('CameraApi.downloadFiles', () {
+    test('a callback failure does not change download counts', () async {
+      final api = _apiReturning((_) => http.Response.bytes([1, 2, 3], 200));
+      final directory = await Directory.systemTemp.createTemp('olympus_test_');
+      addTearDown(() => directory.delete(recursive: true));
+
+      final result = await api.downloadFiles(
+        [_file('P1.JPG')],
+        directory.path,
+        onFileSaved: (_) => throw StateError('callback failed'),
+      );
+
+      expect(result.success, 1);
+      expect(result.failed, 0);
+      expect(result.savedPaths, hasLength(1));
+      expect(await File(result.savedPaths.single).exists(), isTrue);
     });
   });
 

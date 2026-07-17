@@ -38,6 +38,11 @@ class CameraFile {
   });
 
   String get fullPath => '$directory/$filename';
+
+  /// Stable identity for the download registry. Includes size and raw
+  /// timestamp so a new photo reusing a deleted file's name (cameras recycle
+  /// names like P1010001.JPG) is not mistaken for an already-downloaded one.
+  String get downloadKey => '$fullPath|$size|$dateRaw|$timeRaw';
   String get thumbnailUrl => '$baseUrl/get_thumbnail.cgi?DIR=$fullPath';
   String get screennailUrl => '$baseUrl/get_screennail.cgi?DIR=$fullPath';
   String resizeImgUrl([int size = kPreviewImageSize]) =>
@@ -296,18 +301,27 @@ class CameraApi {
 
   /// Download file bytes
   Future<List<int>> downloadFile(CameraFile file) async {
-    final resp = await _client
-        .get(Uri.parse(file.downloadUrl), headers: _headers)
-        .timeout(downloadTimeout);
+    final uri = Uri.parse(file.downloadUrl);
+    final resp =
+        await _client.get(uri, headers: _headers).timeout(downloadTimeout);
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw http.ClientException(
+        'Camera download failed with HTTP ${resp.statusCode}',
+        uri,
+      );
+    }
     return resp.bodyBytes;
   }
 
   /// Download multiple files with progress callback
   /// Returns (success, failed, savedPaths)
+  /// [onFileSaved] fires after each file is saved to the device, so callers
+  /// can record per-file success (e.g. the download registry).
   Future<({int success, int failed, List<String> savedPaths})> downloadFiles(
     List<CameraFile> files,
     String saveDirPath, {
     void Function(int done, int total, String filename)? onProgress,
+    void Function(CameraFile file)? onFileSaved,
   }) async {
     int success = 0;
     int failed = 0;
@@ -325,6 +339,13 @@ class CameraApi {
         AppLogger.warning('download/save failed for ${files[i].filename}',
             name: 'camera_api', error: e, stackTrace: st);
         failed++;
+        continue;
+      }
+      try {
+        onFileSaved?.call(files[i]);
+      } catch (e, st) {
+        AppLogger.warning('onFileSaved failed for ${files[i].filename}',
+            name: 'camera_api', error: e, stackTrace: st);
       }
     }
     return (success: success, failed: failed, savedPaths: savedPaths);

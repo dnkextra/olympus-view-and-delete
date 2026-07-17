@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../constants.dart';
 import '../services/camera_api.dart';
+import '../services/download_registry.dart';
 import '../services/thumbnail_manager.dart';
 
 /// Shared decoration for grid/list items: rounded corners, a selection
@@ -43,6 +45,24 @@ class PhotoGrid extends StatefulWidget {
 }
 
 class _PhotoGridState extends State<PhotoGrid> {
+  @override
+  void initState() {
+    super.initState();
+    // Rebuild when a download completes so its indicator appears immediately.
+    DownloadRegistry.instance.addListener(_onRegistryChanged);
+    unawaited(DownloadRegistry.instance.ensureLoaded());
+  }
+
+  @override
+  void dispose() {
+    DownloadRegistry.instance.removeListener(_onRegistryChanged);
+    super.dispose();
+  }
+
+  void _onRegistryChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return NotificationListener<ScrollNotification>(
@@ -86,6 +106,8 @@ class _PhotoGridState extends State<PhotoGrid> {
         file: widget.files[i],
         index: i,
         selected: widget.selectedPaths.contains(widget.files[i].fullPath),
+        downloaded: DownloadRegistry.instance
+            .isDownloaded(widget.files[i].downloadKey),
         selectionMode: widget.selectionMode,
         onTap: () => widget.onTap(widget.files[i]),
         onLongPress: () => widget.onLongPress(widget.files[i]),
@@ -104,6 +126,8 @@ class _PhotoGridState extends State<PhotoGrid> {
         file: widget.files[i],
         index: i,
         selected: widget.selectedPaths.contains(widget.files[i].fullPath),
+        downloaded: DownloadRegistry.instance
+            .isDownloaded(widget.files[i].downloadKey),
         selectionMode: widget.selectionMode,
         onTap: () => widget.onTap(widget.files[i]),
         onLongPress: () => widget.onLongPress(widget.files[i]),
@@ -115,10 +139,29 @@ class _PhotoGridState extends State<PhotoGrid> {
   }
 }
 
+/// Small corner badge shown on items already saved to this device.
+class _DownloadedBadge extends StatelessWidget {
+  const _DownloadedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.black.withOpacity(0.55),
+      ),
+      child: const Icon(Icons.download_done, color: kAccentColor, size: 14),
+    );
+  }
+}
+
 class _GridItem extends StatelessWidget {
   final CameraFile file;
   final int index;
   final bool selected;
+  final bool downloaded;
   final bool selectionMode;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
@@ -128,6 +171,7 @@ class _GridItem extends StatelessWidget {
     required this.file,
     required this.index,
     required this.selected,
+    required this.downloaded,
     required this.selectionMode,
     required this.onTap,
     required this.onLongPress,
@@ -154,6 +198,12 @@ class _GridItem extends StatelessWidget {
                     index: index,
                     imagePath: file.fullPath,
                   ),
+                  if (downloaded)
+                    const Positioned(
+                      top: 4,
+                      left: 4,
+                      child: _DownloadedBadge(),
+                    ),
                   if (selected)
                     Positioned(
                       top: 4,
@@ -201,6 +251,7 @@ class _ListItem extends StatelessWidget {
   final CameraFile file;
   final int index;
   final bool selected;
+  final bool downloaded;
   final bool selectionMode;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
@@ -210,6 +261,7 @@ class _ListItem extends StatelessWidget {
     required this.file,
     required this.index,
     required this.selected,
+    required this.downloaded,
     required this.selectionMode,
     required this.onTap,
     required this.onLongPress,
@@ -230,11 +282,22 @@ class _ListItem extends StatelessWidget {
             SizedBox(
               width: 72,
               height: 72,
-              child: _CameraThumbnail(
-                url: file.thumbnailUrl,
-                index: index,
-                imagePath: file.fullPath,
-                fit: BoxFit.cover,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _CameraThumbnail(
+                    url: file.thumbnailUrl,
+                    index: index,
+                    imagePath: file.fullPath,
+                    fit: BoxFit.cover,
+                  ),
+                  if (downloaded)
+                    const Positioned(
+                      top: 4,
+                      left: 4,
+                      child: _DownloadedBadge(),
+                    ),
+                ],
               ),
             ),
             Expanded(

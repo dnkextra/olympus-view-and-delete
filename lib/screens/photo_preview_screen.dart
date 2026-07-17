@@ -11,6 +11,7 @@ import '../constants.dart';
 import '../services/app_logger.dart';
 import '../services/camera_api.dart';
 import '../services/download_foreground_service.dart';
+import '../services/download_registry.dart';
 import '../services/file_saver.dart' as file_saver;
 import '../services/image_cache.dart';
 import '../services/service_config.dart';
@@ -133,6 +134,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       );
       final saveDirPath = kIsWeb ? null : await file_saver.getSaveDirectory();
       await file_saver.saveFileToDevice(file.filename, bytes, saveDirPath);
+      unawaited(DownloadRegistry.instance.markDownloaded(file.downloadKey));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${AppStrings.download}: ${file.filename}')),
