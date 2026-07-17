@@ -24,16 +24,22 @@ import 'photo_preview_screen.dart';
 import 'qr_scan_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.localeController});
+  const HomeScreen({
+    super.key,
+    required this.localeController,
+    this.api,
+  });
 
   final LocaleController localeController;
+  final CameraApi? api;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final CameraApi _api = CameraApi();
+  late final CameraApi _api;
+  late final bool _ownsApi;
 
   List<CameraFile> _allFiles = [];
   List<CameraFile> _filteredFiles = [];
@@ -71,13 +77,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _ownsApi = widget.api == null;
+    _api = widget.api ?? CameraApi();
     _initLoad();
   }
 
   @override
   void dispose() {
     _batchFlushTimer?.cancel();
-    _api.dispose();
+    if (_ownsApi) _api.dispose();
     super.dispose();
   }
 
@@ -300,6 +308,9 @@ class _HomeScreenState extends State<HomeScreen> {
       } else {
         _selectedPaths.add(file.fullPath);
       }
+      if (_selectedPaths.isEmpty) {
+        _selectionMode = false;
+      }
     });
   }
 
@@ -327,9 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _deselectAll() {
-    setState(() => _selectedPaths.clear());
-  }
+  void _deselectAll() => _exitSelectionMode();
 
   void _selectByDates() {
     // Collect dates (year-month-day) of currently selected files
