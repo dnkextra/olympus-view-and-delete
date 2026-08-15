@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-08-15
+
+### Added
+- **Android APK + AAB CI builds** with `flutter analyze`, the full test suite, release APK compilation and App Bundle compilation.
+- **16 KB page-size compatibility check** for the Android 64-bit ABIs (`arm64-v8a` and `x86_64`) required by modern Google Play / Android devices.
+- **Safe signed-release workflow**: GitHub Actions restores the signing keystore only at build time, verifies its certificate SHA-256, builds APK/AAB and removes signing material afterwards.
+- **Modern Android storage integration**: downloaded photos are saved through `MediaStore` into `DCIM/OlympusView` on Android 10+ so broad storage access is no longer required.
+- **Android 13+ Wi-Fi permission handling** using `NEARBY_WIFI_DEVICES`; legacy fine-location access is limited to Android 12L and older where required by the Wi-Fi APIs.
+- **Android launcher/adaptive icon** based on the existing Olympus View camera mark.
+- Google Play preparation documentation, Android signing documentation and release checks.
+
+### Changed
+- Version bumped to **1.3.2+6**.
+- Android build stack aligned to **compileSdk/targetSdk 36**, **AGP 8.10.1**, **Gradle 8.11.1** and **JDK 17**, with plugin versions defined in one place.
+- `mobile_scanner` updated to **6.0.11**, bringing newer CameraX / bundled ML Kit Android components and 16 KB-compatible 64-bit native libraries.
+- Android release builds no longer silently fall back to a debug signing key unless explicitly enabled for non-publishing CI validation.
+- CI is currently focused on Android; Windows/Web build refinements are deferred to a later pass.
+- Removed tracked local Android build state (`android/local.properties`, `.gradle` cache and stale generated plugin registrant) from the repository.
+
+### Fixed
+- Release APK and AAB now build successfully in GitHub Actions.
+- Fixed the 16 KB checker so it validates ELF `LOAD` segment alignment correctly and follows Android's 64-bit ABI verification scope.
+- Fixed Android photo saving under scoped storage on recent Android versions.
+- Fixed stale Android plugin registration that referenced removed dependencies.
+- Fixed multiple analyzer/lint issues so the quality gate passes cleanly.
+
 ## [1.3.1] - 2026-05-29
 
 ### Added
