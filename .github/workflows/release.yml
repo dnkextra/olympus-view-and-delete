@@ -2,14 +2,15 @@ name: Android Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - master
 
 permissions:
   contents: write
 
 env:
   FLUTTER_VERSION: "3.44.7"
+  RELEASE_TAG: "v1.3.2"
   EXPECTED_ANDROID_CERT_SHA256: "3786a41c932c63183fc36dd388cb6be397775392d3bf6e7f4fb16dc28cae841e"
 
 jobs:
@@ -155,15 +156,16 @@ jobs:
           name: release-android
           path: dist
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release and tag
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" \
+          gh release create "$RELEASE_TAG" \
             dist/OlympusView-Android.apk \
             dist/OlympusView-Android.aab \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Olympus View $GITHUB_REF_NAME" \
+            --target "$GITHUB_SHA" \
+            --title "Olympus View $RELEASE_TAG" \
             --generate-notes
