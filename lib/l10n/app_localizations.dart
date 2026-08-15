@@ -363,6 +363,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'files'**
   String get files;
+
+  /// No description provided for @trademarkDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Olympus and OM System are trademarks of their respective owners. This is an unofficial app, not affiliated with or endorsed by OM Digital Solutions.'**
+  String get trademarkDisclaimer;
 }
 
 class _AppLocalizationsDelegate

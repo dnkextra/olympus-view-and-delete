@@ -142,6 +142,12 @@ Decoding algorithm: substitution cipher with a 44-character set (QR alphanumeric
 
 Open source. Free to use and modify.
 
+## Disclaimer
+
+**Olympus** and **OM System** are trademarks of their respective owners.
+This is an unofficial application, not affiliated with, endorsed by, or
+sponsored by OM Digital Solutions, Olympus Corporation, or OM System.
+
 ---
 
 # Olympus View (Українська)

@@ -142,4 +142,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get files => 'files';
+
+  @override
+  String get trademarkDisclaimer =>
+      'Olympus and OM System are trademarks of their respective owners. This is an unofficial app, not affiliated with or endorsed by OM Digital Solutions.';
 }

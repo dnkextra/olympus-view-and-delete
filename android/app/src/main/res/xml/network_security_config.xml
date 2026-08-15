@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext HTTP is allowed ONLY for the Olympus / OM System camera's
+  fixed AP address (192.168.0.10) over the local WiFi network.
+  All other traffic must use HTTPS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.0.10</domain>
+    </domain-config>
+</network-security-config>

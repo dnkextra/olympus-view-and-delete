@@ -142,4 +142,8 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get files => 'файлів';
+
+  @override
+  String get trademarkDisclaimer =>
+      'Olympus і OM System — торговельні марки відповідних власників. Це неофіційний застосунок, не пов\'язаний з OM Digital Solutions.';
 }

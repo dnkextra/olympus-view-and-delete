@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wifi_iot/wifi_iot.dart';
 
 import '../constants.dart';
+import '../l10n/app_localizations.dart';
 import '../l10n/l10n.dart';
 import '../services/app_logger.dart';
 import '../services/camera_api.dart';
@@ -412,6 +413,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showAbout() {
+    final disclaimer = AppLocalizations.of(context)?.trademarkDisclaimer ??
+        'Olympus and OM System are trademarks of their respective owners. '
+            'This is an unofficial app, not affiliated with or endorsed by '
+            'OM Digital Solutions.';
     showAboutDialog(
       context: context,
       applicationName: appName,
@@ -452,6 +457,13 @@ class _HomeScreenState extends State<HomeScreen> {
               fontSize: 13,
             ),
           ),
+        ),
+        const SizedBox(height: 16),
+        const Divider(height: 1),
+        const SizedBox(height: 12),
+        Text(
+          disclaimer,
+          style: const TextStyle(fontSize: 11, color: Colors.white60),
         ),
       ],
     );

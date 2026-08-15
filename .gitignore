@@ -45,6 +45,11 @@ app.*.map.json
 # Gradle cache (should never be committed)
 /android/.gradle/
 
+# Release signing — NEVER commit
+/android/key.properties
+**/*.jks
+**/*.keystore
+
 # Local working notes (not part of the release)
 /plan.md
 
@@ -63,3 +68,4 @@ app.*.map.json
 # IDE
 .vscode/
 *.code-workspace
+olympus_flutter_summary.md

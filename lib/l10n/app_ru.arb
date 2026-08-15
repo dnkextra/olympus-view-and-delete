@@ -42,5 +42,6 @@
   "noDatesAvailable": "Нет доступных дат",
   "downloading": "Скачивание...",
   "deletingFiles": "Удаление файлов...",
-  "files": "файлов"
+  "files": "файлов",
+  "trademarkDisclaimer": "Olympus и OM System — товарные знаки соответствующих владельцев. Это неофициальное приложение, не связанное с OM Digital Solutions."
 }
