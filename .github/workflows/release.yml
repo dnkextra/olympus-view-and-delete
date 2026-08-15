@@ -1,0 +1,169 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: "3.44.7"
+  EXPECTED_ANDROID_CERT_SHA256: "3786a41c932c63183fc36dd388cb6be397775392d3bf6e7f4fb16dc28cae841e"
+
+jobs:
+  quality:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+  android:
+    name: Build signed Android APK and AAB
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Validate signing secrets
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [[ -n "$KEYSTORE_B64" ]] || { echo "Missing ANDROID_KEYSTORE_BASE64"; exit 1; }
+          [[ -n "$STORE_PASSWORD" ]] || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          [[ -n "$KEY_ALIAS" ]] || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
+          [[ -n "$KEY_PASSWORD" ]] || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
+
+      - name: Restore and verify Android signing key
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > android/app/olympus-release.jks
+
+          actual_cert_sha256="$(
+            keytool -list -v \
+              -keystore android/app/olympus-release.jks \
+              -storepass "$STORE_PASSWORD" \
+              -alias "$KEY_ALIAS" \
+            | sed -n 's/.*SHA256: //p' \
+            | head -n 1 \
+            | tr -d ':' \
+            | tr '[:upper:]' '[:lower:]'
+          )"
+
+          echo "Signing certificate SHA-256: $actual_cert_sha256"
+          if [[ "$actual_cert_sha256" != "$EXPECTED_ANDROID_CERT_SHA256" ]]; then
+            echo "ERROR: wrong Android signing certificate."
+            echo "Expected: $EXPECTED_ANDROID_CERT_SHA256"
+            echo "Actual:   $actual_cert_sha256"
+            exit 1
+          fi
+
+          cat > android/key.properties <<EOF
+          storeFile=${GITHUB_WORKSPACE}/android/app/olympus-release.jks
+          storePassword=${STORE_PASSWORD}
+          keyAlias=${KEY_ALIAS}
+          keyPassword=${KEY_PASSWORD}
+          EOF
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build signed APK
+        run: flutter build apk --release
+
+      - name: Verify Android 16 KB page-size compatibility
+        shell: bash
+        run: bash scripts/check_android_16kb.sh
+
+      - name: Build signed AAB
+        run: flutter build appbundle --release
+
+      - name: Stage Android files
+        shell: bash
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk OlympusView-Android.apk
+          cp build/app/outputs/bundle/release/app-release.aab OlympusView-Android.aab
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-android
+          path: |
+            OlympusView-Android.apk
+            OlympusView-Android.aab
+          if-no-files-found: error
+
+      - name: Remove signing material
+        if: always()
+        shell: bash
+        run: rm -f android/app/olympus-release.jks android/key.properties
+
+  publish:
+    name: Publish Android GitHub Release
+    needs: android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Android artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: release-android
+          path: dist
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            dist/OlympusView-Android.apk \
+            dist/OlympusView-Android.aab \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Olympus View $GITHUB_REF_NAME" \
+            --generate-notes
