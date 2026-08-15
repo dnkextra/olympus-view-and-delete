@@ -63,11 +63,11 @@
       "applicationSubCategory": "Photography",
       "operatingSystem": ["Android", "Windows", "Web"],
       "url": "https://dpolarov.github.io/olympus-view-and-delete/",
-      "downloadUrl": "https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases",
+      "downloadUrl": "https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk",
       "codeRepository": "https://github.com/dpolarov/olympus-view-and-delete",
-      "softwareVersion": "1.3.1",
+      "softwareVersion": "1.3.2",
       "datePublished": "2026-03-15",
-      "dateModified": "2026-05-29",
+      "dateModified": "2026-08-15",
       "license": "https://opensource.org/licenses/MIT",
       "offers": {
         "@type": "Offer",
@@ -757,7 +757,7 @@
     <h1>Olympus View — WiFi File Manager for Olympus &amp; OM System Cameras</h1>
     <p>Manage, download and <strong>delete photos</strong> on Olympus and OM System cameras via WiFi — from your phone or computer. The free <strong>OI.Share alternative</strong> that actually works.</p>
     <div class="hero-badges">
-        <a href="#dl-en" class="badge badge-primary">Android</a>
+        <a href="https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk" class="badge badge-primary">Download Android APK</a>
         <a href="#dl-en" class="badge badge-outline">Windows</a>
         <a href="#dl-en" class="badge badge-outline">Web</a>
         <a href="https://github.com/dpolarov/olympus-view-and-delete" target="_blank" rel="noopener" class="badge badge-green">Open Source</a>
@@ -851,10 +851,10 @@
 
     <h2 id="dl-en">Download</h2>
     <div class="downloads">
-        <a href="https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases" class="download-card" target="_blank" rel="noopener">
+        <a href="https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk" class="download-card">
             <div class="download-icon">🤖</div>
             <h3>Android</h3>
-            <p>APK file<br>Manual install</p>
+            <p>v1.3.2 APK<br>Direct download</p>
         </a>
         <a href="https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases" class="download-card" target="_blank" rel="noopener">
             <div class="download-icon">🪟</div>
@@ -901,6 +901,18 @@
 
     <h2 id="changelog-en">Changelog</h2>
     <div class="changelog">
+        <div class="changelog-version">
+            <h3>v1.3.2 — August 15, 2026</h3>
+            <h4>Android / Google Play preparation</h4>
+            <ul>
+                <li><strong>Android APK and AAB builds are green</strong> in GitHub Actions with analyzer and tests</li>
+                <li><strong>16 KB page-size support</strong> verified for arm64-v8a and x86_64 native libraries</li>
+                <li><strong>Modern Android storage</strong> — downloads use MediaStore and appear in DCIM/OlympusView</li>
+                <li><strong>Android 13+ WiFi permissions</strong> updated to NEARBY_WIFI_DEVICES</li>
+                <li>Updated mobile scanner / ML Kit components and Android build toolchain for targetSdk 36</li>
+                <li>Release signing is verified against the existing app certificate before publishing</li>
+            </ul>
+        </div>
         <div class="changelog-version">
             <h3>v1.3.1 — May 29, 2026</h3>
             <h4>Added</h4>
@@ -1009,7 +1021,7 @@
     <h1>Olympus View</h1>
     <p>Керуйте фотографіями на камерах Olympus та OM System через WiFi. Завантажуйте, видаляйте та переглядайте файли — з телефону або комп'ютера.</p>
     <div class="hero-badges">
-        <a href="#dl-uk" class="badge badge-primary">Android</a>
+        <a href="https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk" class="badge badge-primary">Завантажити Android APK</a>
         <a href="#dl-uk" class="badge badge-outline">Windows</a>
         <a href="#dl-uk" class="badge badge-outline">Web</a>
         <a href="https://github.com/dpolarov/olympus-view-and-delete" target="_blank" rel="noopener" class="badge badge-green">Open Source</a>
@@ -1103,10 +1115,10 @@
 
     <h2 id="dl-uk">Завантажити</h2>
     <div class="downloads">
-        <a href="https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases" class="download-card">
+        <a href="https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk" class="download-card">
             <div class="download-icon">🤖</div>
             <h3>Android</h3>
-            <p>APK файл<br>Встановити вручну</p>
+            <p>v1.3.2 APK<br>Пряме завантаження</p>
         </a>
         <a href="https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases" class="download-card" target="_blank" rel="noopener">
             <div class="download-icon">🪟</div>
@@ -1137,6 +1149,18 @@
 
     <h2 id="changelog-uk">Журнал змін</h2>
     <div class="changelog">
+        <div class="changelog-version">
+            <h3>v1.3.2 — 15 серпня 2026</h3>
+            <h4>Android / підготовка до Google Play</h4>
+            <ul>
+                <li><strong>APK та AAB успішно збираються</strong> у GitHub Actions разом з аналізатором і тестами</li>
+                <li><strong>Підтримка сторінок 16 КБ</strong> перевірена для arm64-v8a та x86_64</li>
+                <li><strong>Сучасне збереження Android</strong> — фото зберігаються через MediaStore у DCIM/OlympusView</li>
+                <li><strong>Дозволи WiFi для Android 13+</strong> переведені на NEARBY_WIFI_DEVICES</li>
+                <li>Оновлено mobile scanner / ML Kit та Android toolchain для targetSdk 36</li>
+                <li>Перед публікацією workflow перевіряє сертифікат ключа підпису</li>
+            </ul>
+        </div>
         <div class="changelog-version">
             <h3>v1.3.1 — 29 травня 2026</h3>
             <h4>Додано</h4>
@@ -1245,7 +1269,7 @@
     <h1>Olympus View — управление камерой через WiFi с удалением файлов</h1>
     <p>Просматривайте, скачивайте и <strong>удаляйте фото</strong> на камерах Olympus и OM System через WiFi. Бесплатная альтернатива <strong>OI.Share</strong> с открытым кодом — для Android, Windows и браузера.</p>
     <div class="hero-badges">
-        <a href="#dl-ru" class="badge badge-primary">Android</a>
+        <a href="https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk" class="badge badge-primary">Скачать Android APK</a>
         <a href="#dl-ru" class="badge badge-outline">Windows</a>
         <a href="#dl-ru" class="badge badge-outline">Web</a>
         <a href="https://github.com/dpolarov/olympus-view-and-delete" target="_blank" rel="noopener" class="badge badge-green">Open Source</a>
@@ -1339,10 +1363,10 @@
 
     <h2 id="dl-ru">Скачать</h2>
     <div class="downloads">
-        <a href="https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases" class="download-card">
+        <a href="https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk" class="download-card">
             <div class="download-icon">🤖</div>
             <h3>Android</h3>
-            <p>APK файл<br>Установить вручную</p>
+            <p>v1.3.2 APK<br>Прямая загрузка</p>
         </a>
         <a href="https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases" class="download-card" target="_blank" rel="noopener">
             <div class="download-icon">🪟</div>
@@ -1389,6 +1413,18 @@
 
     <h2 id="changelog-ru">Журнал изменений</h2>
     <div class="changelog">
+        <div class="changelog-version">
+            <h3>v1.3.2 — 15 августа 2026</h3>
+            <h4>Android / подготовка к Google Play</h4>
+            <ul>
+                <li><strong>APK и AAB успешно собираются</strong> в GitHub Actions вместе с анализатором и тестами</li>
+                <li><strong>Поддержка страниц 16 КБ</strong> проверена для arm64-v8a и x86_64</li>
+                <li><strong>Современное сохранение Android</strong> — фото сохраняются через MediaStore в DCIM/OlympusView</li>
+                <li><strong>WiFi-разрешения Android 13+</strong> переведены на NEARBY_WIFI_DEVICES</li>
+                <li>Обновлены mobile scanner / ML Kit и Android toolchain для targetSdk 36</li>
+                <li>Перед публикацией workflow проверяет сертификат ключа подписи</li>
+            </ul>
+        </div>
         <div class="changelog-version">
             <h3>v1.3.1 — 29 мая 2026</h3>
             <h4>Добавлено</h4>
