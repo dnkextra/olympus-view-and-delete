@@ -2,15 +2,20 @@ name: Android Release
 
 on:
   push:
-    branches:
-      - master
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag, for example v1.3.2"
+        required: true
+        default: "v1.3.2"
 
 permissions:
   contents: write
 
 env:
   FLUTTER_VERSION: "3.44.7"
-  RELEASE_TAG: "v1.3.2"
   EXPECTED_ANDROID_CERT_SHA256: "3786a41c932c63183fc36dd388cb6be397775392d3bf6e7f4fb16dc28cae841e"
 
 jobs:
@@ -150,13 +155,40 @@ jobs:
     needs: android
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout changelog
+        uses: actions/checkout@v6
+
       - name: Download Android artifacts
         uses: actions/download-artifact@v7
         with:
           name: release-android
           path: dist
 
-      - name: Create GitHub Release and tag
+      - name: Prepare release notes
+        shell: bash
+        env:
+          INPUT_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="${INPUT_TAG:-v1.3.2}"
+          fi
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+
+          version="${tag#v}"
+          awk -v version="$version" '
+            $0 ~ "^## \\[" version "\\]" {capture=1; next}
+            capture && $0 ~ "^## \\[" {exit}
+            capture {print}
+          ' CHANGELOG.md > release-notes.md
+
+          if [[ ! -s release-notes.md ]]; then
+            echo "Olympus View $tag" > release-notes.md
+          fi
+
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -168,4 +200,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Olympus View $RELEASE_TAG" \
-            --generate-notes
+            --notes-file release-notes.md
