@@ -1,0 +1,89 @@
+name: Update website for v1.3.2
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/update-site-v132.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update-site:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Patch docs/index.html
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('docs/index.html')
+          text = path.read_text(encoding='utf-8')
+          apk = 'https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk'
+
+          def replace_once(old, new):
+              global text
+              count = text.count(old)
+              if count < 1:
+                  raise SystemExit(f'Expected text not found: {old[:100]!r}')
+              text = text.replace(old, new, 1)
+
+          # SEO / structured data
+          replace_once('"downloadUrl": "https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases",', f'"downloadUrl": "{apk}",')
+          replace_once('"softwareVersion": "1.3.1",', '"softwareVersion": "1.3.2",')
+          replace_once('"dateModified": "2026-05-29",', '"dateModified": "2026-08-15",')
+
+          # Direct APK buttons in all three hero sections.
+          replace_once('<a href="#dl-en" class="badge badge-primary">Android</a>', f'<a href="{apk}" class="badge badge-primary">Download Android APK</a>')
+          replace_once('<a href="#dl-uk" class="badge badge-primary">Android</a>', f'<a href="{apk}" class="badge badge-primary">Завантажити Android APK</a>')
+          replace_once('<a href="#dl-ru" class="badge badge-primary">Android</a>', f'<a href="{apk}" class="badge badge-primary">Скачать Android APK</a>')
+
+          # First card in each Downloads section is Android: point it directly to latest APK.
+          for section_id in ('dl-en', 'dl-uk', 'dl-ru'):
+              pattern = rf'(<h2 id="{section_id}">.*?</h2>\s*<div class="downloads">\s*)<a href="[^"]+" class="download-card"[^>]*>'
+              text, count = re.subn(pattern, rf'\1<a href="{apk}" class="download-card">', text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f'Could not patch Android download card for {section_id}')
+
+          replace_once('<p>APK file<br>Manual install</p>', '<p>v1.3.2 APK<br>Direct download</p>')
+          replace_once('<p>APK файл<br>Встановити вручну</p>', '<p>v1.3.2 APK<br>Пряме завантаження</p>')
+          replace_once('<p>APK файл<br>Установить вручную</p>', '<p>v1.3.2 APK<br>Прямая загрузка</p>')
+
+          en_marker = '''    <h2 id="changelog-en">Changelog</h2>\n    <div class="changelog">\n'''
+          en_block = '''        <div class="changelog-version">\n            <h3>v1.3.2 — August 15, 2026</h3>\n            <h4>Android / Google Play preparation</h4>\n            <ul>\n                <li><strong>Android APK and AAB builds are green</strong> in GitHub Actions with analyzer and tests</li>\n                <li><strong>16 KB page-size support</strong> verified for arm64-v8a and x86_64 native libraries</li>\n                <li><strong>Modern Android storage</strong> — downloads use MediaStore and appear in DCIM/OlympusView</li>\n                <li><strong>Android 13+ WiFi permissions</strong> updated to NEARBY_WIFI_DEVICES</li>\n                <li>Updated mobile scanner / ML Kit components and Android build toolchain for targetSdk 36</li>\n                <li>Release signing is verified against the existing app certificate before publishing</li>\n            </ul>\n        </div>\n'''
+          replace_once(en_marker, en_marker + en_block)
+
+          uk_marker = '''    <h2 id="changelog-uk">Журнал змін</h2>\n    <div class="changelog">\n'''
+          uk_block = '''        <div class="changelog-version">\n            <h3>v1.3.2 — 15 серпня 2026</h3>\n            <h4>Android / підготовка до Google Play</h4>\n            <ul>\n                <li><strong>APK та AAB успішно збираються</strong> у GitHub Actions разом з аналізатором і тестами</li>\n                <li><strong>Підтримка сторінок 16 КБ</strong> перевірена для arm64-v8a та x86_64</li>\n                <li><strong>Сучасне збереження Android</strong> — фото зберігаються через MediaStore у DCIM/OlympusView</li>\n                <li><strong>Дозволи WiFi для Android 13+</strong> переведені на NEARBY_WIFI_DEVICES</li>\n                <li>Оновлено mobile scanner / ML Kit та Android toolchain для targetSdk 36</li>\n                <li>Перед публікацією workflow перевіряє сертифікат ключа підпису</li>\n            </ul>\n        </div>\n'''
+          replace_once(uk_marker, uk_marker + uk_block)
+
+          ru_marker = '''    <h2 id="changelog-ru">Журнал изменений</h2>\n    <div class="changelog">\n'''
+          ru_block = '''        <div class="changelog-version">\n            <h3>v1.3.2 — 15 августа 2026</h3>\n            <h4>Android / подготовка к Google Play</h4>\n            <ul>\n                <li><strong>APK и AAB успешно собираются</strong> в GitHub Actions вместе с анализатором и тестами</li>\n                <li><strong>Поддержка страниц 16 КБ</strong> проверена для arm64-v8a и x86_64</li>\n                <li><strong>Современное сохранение Android</strong> — фото сохраняются через MediaStore в DCIM/OlympusView</li>\n                <li><strong>WiFi-разрешения Android 13+</strong> переведены на NEARBY_WIFI_DEVICES</li>\n                <li>Обновлены mobile scanner / ML Kit и Android toolchain для targetSdk 36</li>\n                <li>Перед публикацией workflow проверяет сертификат ключа подписи</li>\n            </ul>\n        </div>\n'''
+          replace_once(ru_marker, ru_marker + ru_block)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify website patch
+        shell: bash
+        run: |
+          grep -q 'softwareVersion": "1.3.2' docs/index.html
+          grep -q 'releases/latest/download/OlympusView-Android.apk' docs/index.html
+          test "$(grep -c 'v1.3.2 —' docs/index.html)" -eq 3
+
+      - name: Commit website update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Update website for Android v1.3.2"
+          git push
