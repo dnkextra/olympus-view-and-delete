@@ -1,25 +1,62 @@
 @echo off
+setlocal EnableExtensions
+
+set "PROJECT=%~dp0"
+set "APK=%PROJECT%releases\OlympusView-Android.apk"
+set "ADB=adb"
+
+if not exist "%APK%" (
+  echo ========================================
+  echo  Olympus View - Install APK to device
+  echo ========================================
+  echo.
+  echo ERROR: APK not found:
+  echo   %APK%
+  echo.
+  echo Run build_release.cmd first, or place the APK in releases.
+  goto :end
+)
+
+where adb >nul 2>nul
+if errorlevel 1 (
+  if defined ANDROID_HOME if exist "%ANDROID_HOME%\platform-tools\adb.exe" (
+    set "ADB=%ANDROID_HOME%\platform-tools\adb.exe"
+  ) else if defined ANDROID_SDK_ROOT if exist "%ANDROID_SDK_ROOT%\platform-tools\adb.exe" (
+    set "ADB=%ANDROID_SDK_ROOT%\platform-tools\adb.exe"
+  ) else if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" (
+    set "ADB=%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
+  ) else (
+    echo ERROR: adb.exe was not found.
+    echo Install Android Platform Tools or add adb to PATH.
+    goto :end
+  )
+)
+
 echo ========================================
-echo  Olympus View — Install APK to device
-echo ========================================
+echo  Olympus View - Install APK to device
+ echo ========================================
 echo.
-
-set FLUTTER=C:\flutter\bin\flutter.bat
-set PROJECT=C:\tmp\olympus_flutter
-
-echo Building APK...
-call %FLUTTER% build apk --release
-if errorlevel 1 (echo FAILED: APK build & goto :end)
-
+echo APK:
+ echo   %APK%
 echo.
-echo Installing to device...
-call %FLUTTER% install --release
-if errorlevel 1 (echo FAILED: Install & goto :end)
+echo Connected devices:
+"%ADB%" devices
+if errorlevel 1 (
+  echo.
+  echo ERROR: Failed to run adb.
+  goto :end
+)
 
 echo.
-echo Copying APK to releases...
-if not exist "%PROJECT%\releases" mkdir "%PROJECT%\releases"
-copy /Y "%PROJECT%\build\app\outputs\flutter-apk\app-release.apk" "%PROJECT%\releases\OlympusView.apk"
+echo Installing existing APK...
+"%ADB%" install -r "%APK%"
+if errorlevel 1 (
+  echo.
+  echo FAILED: APK installation failed.
+  echo Check that the device is connected, USB debugging is enabled,
+  echo and the installed app uses the same signing key.
+  goto :end
+)
 
 echo.
 echo ========================================
@@ -28,3 +65,4 @@ echo ========================================
 
 :end
 pause
+endlocal
