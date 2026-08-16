@@ -3,6 +3,7 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [master]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -15,7 +16,7 @@ env:
   APP_BASE_HREF: "/olympus-view-and-delete/app/"
 
 concurrency:
-  group: github-pages
+  group: github-pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -82,15 +83,18 @@ jobs:
           echo "Flutter Web: _site/app/index.html"
 
       - name: Configure Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         uses: actions/configure-pages@v6
 
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
   deploy:
     name: Deploy
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
