@@ -7,11 +7,13 @@ import 'package:http/http.dart' as http;
 
 import '../constants.dart';
 import '../services/app_logger.dart';
+import '../services/background_download_service.dart';
 import '../services/camera_api.dart';
 import '../services/camera_image_validator.dart';
 import '../services/download_history.dart';
 import '../services/file_saver.dart' as file_saver;
 import '../services/image_cache.dart';
+import '../services/preview_preload_plan.dart';
 import '../services/service_config.dart';
 import '../services/thumbnail_manager.dart';
 
@@ -57,6 +59,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
   final _PreviewCameraQueue _cameraQueue = _PreviewCameraQueue();
   late final bool _ownsApi;
   bool _busy = false;
+  int _preloadGeneration = 0;
   Set<String> _downloadedKeys = <String>{};
 
   @override
@@ -96,35 +99,87 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
   }
 
   void _loadAround(int index) {
-    unawaited(_loadAroundPrioritized(index));
+    final generation = ++_preloadGeneration;
+    final currentKey = _cacheKey(_files[index]);
+    _cameraQueue.cancelPendingPreloads(
+      exceptKey: 'preview:$currentKey',
+    );
+    unawaited(_loadAroundPrioritized(index, generation));
   }
 
-  Future<void> _loadAroundPrioritized(int index) async {
+  bool _isCurrentPreload(int index, int generation) =>
+      mounted &&
+      index == _currentIndex &&
+      generation == _preloadGeneration;
+
+  Future<bool> _downloadsAreRunning() async {
+    if (_busy) return true;
+    try {
+      return await BackgroundDownloadService.isRunning();
+    } catch (e) {
+      AppLogger.debug(
+        'background download state unavailable: $e',
+        name: 'photo_preview',
+      );
+      return _busy;
+    }
+  }
+
+  Future<bool> _waitForDownloadsIdle(
+    int index,
+    int generation, {
+    bool initialDelay = false,
+  }) async {
+    if (initialDelay) {
+      // Small idle window: if the user taps Download immediately after the
+      // visible preview appears, that download wins before any neighbor fetch.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+
+    while (_isCurrentPreload(index, generation)) {
+      if (!await _downloadsAreRunning()) return true;
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    return false;
+  }
+
+  Future<void> _loadAroundPrioritized(int index, int generation) async {
     if (index < 0 || index >= _files.length) return;
 
-    // Do not even enqueue neighbor network work until the visible frame has
-    // finished (or failed). This makes the user's current screen deterministic.
+    // Priority 1: the frame currently visible to the user.
     await _loadImage(index, priority: _priorityVisiblePreview);
-    if (!mounted || index != _currentIndex) return;
+    if (!_isCurrentPreload(index, generation)) return;
 
-    // Give an immediately requested Download a short chance to enter the queue
-    // before low-priority neighbor preloads begin.
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    if (!mounted || index != _currentIndex || _busy) return;
+    // Priority 2: all foreground/background downloads. Neighbor previews wait
+    // until those downloads are idle, then resume automatically.
+    if (!await _waitForDownloadsIdle(
+      index,
+      generation,
+      initialDelay: true,
+    )) {
+      return;
+    }
 
-    for (int d = 1; d <= _keepNeighbors; d++) {
-      if (index - d >= 0) {
-        unawaited(_loadImage(
-          index - d,
-          priority: _priorityNeighborPreload,
-        ));
-      }
-      if (index + d < _files.length) {
-        unawaited(_loadImage(
-          index + d,
-          priority: _priorityNeighborPreload,
-        ));
-      }
+    // Priority 3: preload neighbors in distance pairs. The planner yields
+    // right first, then left for each distance: (+1, -1), (+2, -2), (+3, -3).
+    // Both members of a pair may use two camera connections concurrently, but
+    // the next pair never starts until this pair has completed.
+    final preloadPairs = buildPreviewPreloadPairs(
+      center: index,
+      itemCount: _files.length,
+      radius: _keepNeighbors,
+    );
+    for (final indexes in preloadPairs) {
+      if (!await _waitForDownloadsIdle(index, generation)) return;
+
+      final pair = indexes
+          .map((neighbor) => _loadImage(
+                neighbor,
+                priority: _priorityNeighborPreload,
+              ))
+          .toList(growable: false);
+      await Future.wait(pair);
+      if (!_isCurrentPreload(index, generation)) return;
     }
     _evictFar(index);
   }
@@ -175,7 +230,6 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
           _imageCache[key] = bytes;
         }
       });
-      _loadAround(_currentIndex);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${AppStrings.download}: ${file.filename}')),
       );
@@ -193,7 +247,12 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         SnackBar(content: Text('${AppStrings.download} failed: $e')),
       );
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+        // Restart deterministic right-first neighbor preloading after the
+        // foreground download completes. Cached neighbors are skipped cheaply.
+        _loadAround(_currentIndex);
+      }
     }
   }
 
@@ -388,6 +447,9 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
           _loading.remove(key);
         });
       }
+    } on _PreviewTaskCancelled {
+      if (!mounted) return;
+      setState(() => _loading.remove(key));
     } catch (e) {
       AppLogger.debug(
         'preview load failed for ${file.fullPath}: $e',
@@ -554,8 +616,12 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
 }
 
 class _PreviewCameraQueue {
+  static const int _exclusivePriorityMax = 1;
+  static const int _maxParallelPreloads = 2;
+
   final List<_QueuedPreviewTask> _pending = <_QueuedPreviewTask>[];
-  bool _running = false;
+  bool _exclusiveRunning = false;
+  int _preloadsRunning = 0;
   bool _disposed = false;
   int _order = 0;
 
@@ -569,6 +635,7 @@ class _PreviewCameraQueue {
     for (final task in _pending) {
       if (task.key == key) {
         if (priority < task.priority) task.priority = priority;
+        _pump();
         return task.completer.future;
       }
     }
@@ -580,7 +647,7 @@ class _PreviewCameraQueue {
       run: run,
     );
     _pending.add(task);
-    unawaited(_drain());
+    _pump();
     return task.completer.future;
   }
 
@@ -591,31 +658,70 @@ class _PreviewCameraQueue {
         break;
       }
     }
+    _pump();
   }
 
-  Future<void> _drain() async {
-    if (_running || _disposed) return;
-    _running = true;
+  void cancelPendingPreloads({String? exceptKey}) {
+    final cancelled = _pending
+        .where((task) =>
+            task.priority > _exclusivePriorityMax && task.key != exceptKey)
+        .toList(growable: false);
+    _pending.removeWhere((task) => cancelled.contains(task));
+    for (final task in cancelled) {
+      if (!task.completer.isCompleted) {
+        task.completer.completeError(const _PreviewTaskCancelled());
+      }
+    }
+    _pump();
+  }
+
+  void _pump() {
+    if (_disposed || _exclusiveRunning) return;
+    _pending.sort((a, b) {
+      final priorityCompare = a.priority.compareTo(b.priority);
+      if (priorityCompare != 0) return priorityCompare;
+      return a.order.compareTo(b.order);
+    });
+
+    final exclusiveIndex = _pending.indexWhere(
+      (task) => task.priority <= _exclusivePriorityMax,
+    );
+    if (exclusiveIndex >= 0) {
+      // Visible preview and Download are exclusive camera operations. If a
+      // preload pair is already in flight, let that pair finish, then the new
+      // high-priority task starts before any further preload.
+      if (_preloadsRunning > 0) return;
+      final task = _pending.removeAt(exclusiveIndex);
+      _exclusiveRunning = true;
+      unawaited(_runTask(task, preload: false));
+      return;
+    }
+
+    while (_preloadsRunning < _maxParallelPreloads && _pending.isNotEmpty) {
+      final task = _pending.removeAt(0);
+      _preloadsRunning++;
+      unawaited(_runTask(task, preload: true));
+    }
+  }
+
+  Future<void> _runTask(
+    _QueuedPreviewTask task, {
+    required bool preload,
+  }) async {
     try {
-      while (_pending.isNotEmpty && !_disposed) {
-        _pending.sort((a, b) {
-          final priorityCompare = a.priority.compareTo(b.priority);
-          if (priorityCompare != 0) return priorityCompare;
-          return a.order.compareTo(b.order);
-        });
-        final task = _pending.removeAt(0);
-        try {
-          final value = await task.run();
-          if (!task.completer.isCompleted) task.completer.complete(value);
-        } catch (error, stackTrace) {
-          if (!task.completer.isCompleted) {
-            task.completer.completeError(error, stackTrace);
-          }
-        }
+      final value = await task.run();
+      if (!task.completer.isCompleted) task.completer.complete(value);
+    } catch (error, stackTrace) {
+      if (!task.completer.isCompleted) {
+        task.completer.completeError(error, stackTrace);
       }
     } finally {
-      _running = false;
-      if (_pending.isNotEmpty && !_disposed) unawaited(_drain());
+      if (preload) {
+        _preloadsRunning--;
+      } else {
+        _exclusiveRunning = false;
+      }
+      _pump();
     }
   }
 
@@ -626,6 +732,10 @@ class _PreviewCameraQueue {
     }
     _pending.clear();
   }
+}
+
+class _PreviewTaskCancelled implements Exception {
+  const _PreviewTaskCancelled();
 }
 
 class _QueuedPreviewTask {
