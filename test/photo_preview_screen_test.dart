@@ -1,10 +1,13 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:olympus_tg6_manager/screens/photo_preview_screen.dart';
 import 'package:olympus_tg6_manager/services/camera_api.dart';
+import 'package:olympus_tg6_manager/services/download_history.dart';
 import 'package:olympus_tg6_manager/services/image_cache.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -84,6 +87,7 @@ void main() {
   });
 
   tearDown(() async {
+    debugDefaultTargetPlatformOverride = null;
     await ImageDiskCache.instance.resetForTests();
     if (await tmp.exists()) {
       try {
@@ -249,5 +253,30 @@ void main() {
     expect(api.deletedPaths, isEmpty);
     expect(find.text('A.JPG'), findsOneWidget);
     expect(find.text('1/2'), findsOneWidget);
+  });
+
+  testWidgets('downloaded file shows download-done marker in preview',
+      (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final file = _file('DONE.JPG');
+      SharedPreferences.setMockInitialValues({
+        'download_history_v1': <String>[file.downloadHistoryKey],
+      });
+
+      expect(await DownloadHistory.load(), contains(file.downloadHistoryKey));
+
+      await _pumpPreview(
+        tester,
+        files: [file],
+        initialIndex: 0,
+        api: _FakeApi(),
+      );
+      await _settle(tester);
+
+      expect(find.byIcon(Icons.download_done), findsOneWidget);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 }

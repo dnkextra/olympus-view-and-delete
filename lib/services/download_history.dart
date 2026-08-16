@@ -16,8 +16,12 @@ class DownloadHistory {
     if (_isAndroid) {
       try {
         final keys = await _channel.invokeListMethod<String>('getDownloadedKeys');
-        return (keys ?? const <String>[]).toSet();
+        if (keys != null) return keys.toSet();
+        // A null result means the native handler is unavailable in this
+        // embedding/test environment, so use the portable fallback below.
       } on PlatformException {
+        // Fall through for tests / unsupported embeddings.
+      } on MissingPluginException {
         // Fall through for tests / unsupported embeddings.
       }
     }
@@ -34,6 +38,8 @@ class DownloadHistory {
         });
         return;
       } on PlatformException {
+        // Fall through for tests / unsupported embeddings.
+      } on MissingPluginException {
         // Fall through for tests / unsupported embeddings.
       }
     }

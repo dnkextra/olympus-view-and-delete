@@ -1209,13 +1209,17 @@ class _HomeScreenState extends State<HomeScreen>
                     .toList(),
               ),
             ),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onLongPress: _openDebugInfo,
-              child: IconButton(
-                icon: const Icon(Icons.info_outline),
-                tooltip: 'About · hold for diagnostics',
-                onPressed: _showAbout,
+            Semantics(
+              button: true,
+              label: 'About. Long press for diagnostics.',
+              child: InkResponse(
+                radius: 24,
+                onTap: _showAbout,
+                onLongPress: _openDebugInfo,
+                child: const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Icon(Icons.info_outline),
+                ),
               ),
             ),
           ],
@@ -1343,6 +1347,8 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                           ),
                         );
+                        if (!mounted) return;
+                        await _refreshDownloadedHistory();
                         if (deleted == true && mounted) {
                           unawaited(_loadFiles());
                         }
