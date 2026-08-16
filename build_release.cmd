@@ -49,6 +49,13 @@ if /I not "!GIT_BRANCH!"=="master" (
 set "GIT_COMMIT="
 for /f "delims=" %%A in ('git rev-parse --short HEAD 2^>nul') do set "GIT_COMMIT=%%A"
 
+set "BUILD_TIME_UTC="
+for /f "delims=" %%A in ('powershell -NoProfile -Command "[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')" 2^>nul') do set "BUILD_TIME_UTC=%%A"
+if not defined BUILD_TIME_UTC set "BUILD_TIME_UTC=unknown"
+
+set "BUILD_FLUTTER_VERSION=unknown"
+for /f "tokens=2" %%A in ('call "%FLUTTER%" --version 2^>nul ^| findstr /B /C:"Flutter "') do set "BUILD_FLUTTER_VERSION=%%A"
+
 set "PUBSPEC_VERSION="
 for /f "tokens=2" %%A in ('findstr /B /C:"version:" "%PROJECT%\pubspec.yaml"') do set "PUBSPEC_VERSION=%%A"
 if not defined PUBSPEC_VERSION (
@@ -81,6 +88,8 @@ echo ========================================
 echo Source branch : !GIT_BRANCH!
 echo Source commit : !GIT_COMMIT!
 echo App version   : !BUILD_NAME! (build !BUILD_NUMBER!)
+echo Build time UTC: !BUILD_TIME_UTC!
+echo Flutter       : !BUILD_FLUTTER_VERSION!
 echo.
 
 rem Local GitHub APK updates must use the same certificate as the APKs that
@@ -131,18 +140,24 @@ if exist "%KEY_PROPERTIES%" (
 )
 
 echo.
-echo [1/5] Resolving dependencies...
+echo [1/7] Cleaning Flutter build cache...
+rem This is intentional for release builds. A stale incremental AOT artifact can
+rem otherwise produce a new Android manifest around an older libapp.so.
+call "%FLUTTER%" clean
+if errorlevel 1 goto :failed
+
+echo.
+echo [2/7] Resolving dependencies...
 call "%FLUTTER%" pub get
 if errorlevel 1 goto :failed
 
 echo.
-echo [2/5] Removing stale APK outputs...
-if exist "%BUILT_APK%" del /Q "%BUILT_APK%"
+echo [3/7] Removing stale release copy...
 if exist "%RELEASE_APK%" del /Q "%RELEASE_APK%"
 
 echo.
-echo [3/5] Building signed GitHub APK !BUILD_NAME! build !BUILD_NUMBER!...
-call "%FLUTTER%" build apk --flavor github --release --build-name !BUILD_NAME! --build-number !BUILD_NUMBER! --obfuscate --split-debug-info=build/symbols
+echo [4/7] Building signed GitHub APK !BUILD_NAME! build !BUILD_NUMBER!...
+call "%FLUTTER%" build apk --flavor github --release --build-name !BUILD_NAME! --build-number !BUILD_NUMBER! --dart-define=OLYMPUS_BUILD_TIME_UTC=!BUILD_TIME_UTC! --dart-define=OLYMPUS_GIT_COMMIT=!GIT_COMMIT! --dart-define=OLYMPUS_FLUTTER_VERSION=!BUILD_FLUTTER_VERSION! --obfuscate --split-debug-info=build/symbols
 if errorlevel 1 goto :failed
 if not exist "%BUILT_APK%" (
   echo ERROR: Flutter reported success but the expected APK was not created:
@@ -151,7 +166,16 @@ if not exist "%BUILT_APK%" (
 )
 
 echo.
-echo [4/5] Verifying APK version...
+echo [5/7] Verifying packaged Dart AOT metadata...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT%\scripts\verify_apk_dart_metadata.ps1" -ApkPath "%BUILT_APK%" -ExpectedCommit "!GIT_COMMIT!" -ExpectedBuildTime "!BUILD_TIME_UTC!"
+if errorlevel 1 (
+  echo ERROR: Packaged Dart code does not match this build.
+  echo        Refusing to copy a potentially stale APK.
+  goto :failed
+)
+
+echo.
+echo [6/7] Verifying APK manifest version...
 set "AAPT="
 where aapt >nul 2>nul
 if not errorlevel 1 (
@@ -202,7 +226,7 @@ if defined AAPT (
 )
 
 echo.
-echo [5/5] Copying APK...
+echo [7/7] Copying APK...
 copy /Y "%BUILT_APK%" "%RELEASE_APK%" >nul
 if errorlevel 1 goto :failed
 
@@ -211,6 +235,9 @@ echo ========================================
 echo  Android release file
 echo ========================================
 echo Version: !BUILD_NAME! (build !BUILD_NUMBER!)
+echo Build UTC: !BUILD_TIME_UTC!
+echo Commit: !GIT_COMMIT!
+echo Flutter: !BUILD_FLUTTER_VERSION!
 echo APK: %RELEASE_APK%
 echo Symbols: %PROJECT%\build\symbols
 echo.

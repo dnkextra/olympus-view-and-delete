@@ -6,13 +6,15 @@
 - **GitHub APK auto-update check**: the Android GitHub build checks the latest published GitHub release at startup, offers newer versions, downloads the APK in the background and shows an install-ready notification. The Google Play flavor explicitly disables external APK updates.
 - **Persistent downloaded-file markers**: successfully downloaded camera files are recorded by camera path, size and FAT timestamp and remain highlighted after app restarts and normal app updates.
 - **Android background camera downloads**: selected files can continue downloading through a `connectedDevice` foreground service while Olympus View is backgrounded or the screen is off, with progress and completion notifications.
+- **Four-finger diagnostics screen**: hold four fingers anywhere in the app to open runtime diagnostics with the installed package version/build, source version, embedded build time and Git commit, Android/device/ABI details, display/memory/storage information, active network, camera endpoint, permissions, saved-camera/download state and process metadata. The report can be copied to the clipboard and does not expose saved Wi-Fi passwords.
 
 ### Changed
 - Android distribution is split into `github` and `play` flavors so the GitHub APK can request package installation while the Play bundle does not request `REQUEST_INSTALL_PACKAGES`.
 - Android `versionName` and `versionCode` now come directly from the Flutter Gradle plugin instead of potentially stale values in `android/local.properties`.
-- `build_release.cmd` now requires the `master` branch, prints the source commit/version, passes explicit build-name/build-number values and verifies the finished APK manifest when `aapt` is available.
-- `install.cmd` now prints the actually installed Android `versionName`/`versionCode` after `adb install -r`.
+- `build_release.cmd` now requires the `master` branch, embeds build time/Git commit/Flutter version for diagnostics, performs `flutter clean` before every local release build, passes explicit build-name/build-number values and verifies the finished APK manifest when `aapt` is available. The clean step prevents a new APK manifest from being packaged with a stale cached Dart `libapp.so`.
+- `install.cmd` now force-stops any old Olympus View process before replacing the APK, prints the actually installed Android `versionName`/`versionCode`, and starts a fresh app process after installation.
 - The in-app About changelog now highlights the current 1.3.4 Android features instead of the older preview-only list.
+- Test build bumped to **1.3.4+10** for diagnostics verification.
 
 ## [1.3.2] - 2026-08-15
 
