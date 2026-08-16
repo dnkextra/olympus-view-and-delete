@@ -36,6 +36,10 @@ void main() {
       expect(AppUpdateService.isNewerVersion('1.3.4', '1.3.2'), isTrue);
     });
 
+    test('detects the production 1.3.5 -> 1.3.6 update', () {
+      expect(AppUpdateService.isNewerVersion('1.3.6', '1.3.5'), isTrue);
+    });
+
     test('does not treat the same version as newer', () {
       expect(AppUpdateService.isNewerVersion('1.3.4', '1.3.4'), isFalse);
     });
