@@ -1,4 +1,4 @@
-name: Apply cross-platform download migration
+name: Apply Windows runner compatibility fix
 
 on:
   push:
@@ -17,17 +17,14 @@ jobs:
         with:
           ref: agent/windows-web-release
           fetch-depth: 0
-      - name: Patch download links and remove tracked generated releases
-        run: |
-          set -euo pipefail
-          python3 scripts/patch_cross_platform_downloads.py
-          git rm -r releases
-      - name: Commit migration
+      - name: Pin Windows build jobs to VS2022
+        run: python3 scripts/patch_cross_platform_downloads.py
+      - name: Commit runner fix
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .gitignore README.md docs/index.html docs/index.md docs/index.ru.md docs/index.uk.md docs/llms.txt
+          git add .github/workflows/flutter-ci.yml .github/workflows/release.yml
           git diff --cached --stat
-          git commit -m "Move desktop and web downloads to GitHub Releases"
+          git commit -m "Pin Windows builds to VS2022"
           git push origin HEAD:agent/windows-web-release
