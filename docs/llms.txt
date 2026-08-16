@@ -15,6 +15,11 @@ Important upgrade note: direct APK users on v1.3.5 or older must uninstall the o
 - [Опис продукту — Українська](https://dpolarov.github.io/olympus-view-and-delete/index.uk.md): Можливості, підтримувані камери, встановлення, використання, завантаження та технічні відомості.
 - [Privacy policy](https://dpolarov.github.io/olympus-view-and-delete/privacy.md): App and project-website privacy and data-handling information.
 
+## Web application
+
+- [Hosted Web app](https://dpolarov.github.io/olympus-view-and-delete/app/): Automatically built Flutter Web version. Connect the computer to the camera WiFi before opening/using camera functions. Direct access to the camera's local HTTP interface is browser-dependent and may require Local Network Access permission and compatible camera CORS behavior.
+- [Web ZIP](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Web.zip): Static Flutter Web build for local HTTP hosting when direct hosted-browser access is unsuitable.
+
 ## Releases and source
 
 - [Latest GitHub release](https://github.com/dpolarov/olympus-view-and-delete/releases/latest): Current release notes and downloadable release assets.
@@ -30,6 +35,5 @@ Important upgrade note: direct APK users on v1.3.5 or older must uninstall the o
 
 - [Android APK](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk): Latest direct-install Android APK binary.
 - [Windows x64 ZIP](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Windows.zip): Latest portable Windows desktop build.
-- [Web ZIP](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Web.zip): Latest static Flutter Web build with local HTTP run instructions.
 - [Human-readable website](https://dpolarov.github.io/olympus-view-and-delete/): Multilingual project landing page.
 - [HTML privacy policy](https://dpolarov.github.io/olympus-view-and-delete/privacy.html): Browser-oriented privacy policy.
