@@ -18,14 +18,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -60,11 +58,11 @@ jobs:
           APP_SIGNING_CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
         run: |
           set -euo pipefail
-          printf '%s' "$KEYSTORE_B64" | base64 --decode > android/app/play-upload.jks
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > android/app/play-upload.p12
 
           actual_cert_sha256="$(
-            keytool -list -v \
-              -keystore android/app/play-upload.jks \
+            keytool -list -v -storetype PKCS12 \
+              -keystore android/app/play-upload.p12 \
               -storepass "$STORE_PASSWORD" \
               -alias "$KEY_ALIAS" \
             | sed -n 's/.*SHA256: //p' \
@@ -92,7 +90,7 @@ jobs:
           fi
 
           cat > android/key.properties <<EOF
-          storeFile=${GITHUB_WORKSPACE}/android/app/play-upload.jks
+          storeFile=${GITHUB_WORKSPACE}/android/app/play-upload.p12
           storePassword=${STORE_PASSWORD}
           keyAlias=${KEY_ALIAS}
           keyPassword=${KEY_PASSWORD}
@@ -100,41 +98,33 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
       - name: Analyze
         run: flutter analyze
-
       - name: Test
         run: flutter test
-
       - name: Prepare build metadata
         shell: bash
         run: |
           echo "BUILD_TIME_UTC=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
           echo "BUILD_GIT_COMMIT=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
-
       - name: Build Play release APK for compatibility checks
         run: >-
           flutter build apk --flavor play --release
           --dart-define=OLYMPUS_BUILD_TIME_UTC=${BUILD_TIME_UTC}
           --dart-define=OLYMPUS_GIT_COMMIT=${BUILD_GIT_COMMIT}
           --dart-define=OLYMPUS_FLUTTER_VERSION=${FLUTTER_VERSION}
-
       - name: Verify Android 16 KB page-size compatibility
         shell: bash
         run: bash scripts/check_android_16kb.sh build/app/outputs/flutter-apk/app-play-release.apk
-
       - name: Build Play app bundle
         run: >-
           flutter build appbundle --flavor play --release
           --dart-define=OLYMPUS_BUILD_TIME_UTC=${BUILD_TIME_UTC}
           --dart-define=OLYMPUS_GIT_COMMIT=${BUILD_GIT_COMMIT}
           --dart-define=OLYMPUS_FLUTTER_VERSION=${FLUTTER_VERSION}
-
       - name: Stage Play bundle
         shell: bash
         run: cp build/app/outputs/bundle/playRelease/app-play-release.aab OlympusView-GooglePlay.aab
-
       - name: Upload Play bundle artifact
         uses: actions/upload-artifact@v6
         with:
@@ -142,8 +132,7 @@ jobs:
           path: OlympusView-GooglePlay.aab
           if-no-files-found: error
           retention-days: 14
-
       - name: Remove Play signing material
         if: always()
         shell: bash
-        run: rm -f android/app/play-upload.jks android/key.properties
+        run: rm -f android/app/play-upload.p12 android/key.properties
