@@ -1,0 +1,37 @@
+name: Apply updater progress test branch
+
+on:
+  push:
+    branches:
+      - "agent/update-progress-test"
+    paths:
+      - "scripts/apply_update_progress_test.py"
+      - ".github/workflows/apply-update-progress-test.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/update-progress-test
+          fetch-depth: 0
+
+      - name: Apply updater progress changes
+        run: python3 scripts/apply_update_progress_test.py
+
+      - name: Commit final test branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f scripts/apply_update_progress_test.py
+          rm -f .github/workflows/apply-update-progress-test.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add visible updater progress and protect internet download"
+          git push origin HEAD:agent/update-progress-test
