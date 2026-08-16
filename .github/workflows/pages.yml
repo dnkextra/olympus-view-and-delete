@@ -69,6 +69,33 @@ jobs:
           cp -a build/web/. _site/app/
           touch _site/.nojekyll
 
+      - name: Point landing page Web cards at hosted app
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          page = Path('_site/index.html')
+          text = page.read_text(encoding='utf-8')
+          old_url = 'https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Web.zip'
+          app_url = 'https://dpolarov.github.io/olympus-view-and-delete/app/'
+          count = text.count(old_url)
+          if count != 3:
+              raise SystemExit(f'Expected exactly 3 Web download cards, found {count}')
+          text = text.replace(old_url, app_url)
+          replacements = {
+              'Web build ZIP<br>Run in browser': 'Live Web App<br>Open in browser',
+              'Web ZIP<br>Прямая загрузка': 'Web-приложение<br>Открыть в браузере',
+              'Web ZIP<br>Запуск в браузере': 'Web-приложение<br>Открыть в браузере',
+              'Web ZIP<br>Пряме завантаження': 'Web-застосунок<br>Відкрити у браузері',
+              'Web ZIP<br>Запуск у браузері': 'Web-застосунок<br>Відкрити у браузері',
+          }
+          for old, new in replacements.items():
+              text = text.replace(old, new)
+          page.write_text(text, encoding='utf-8')
+          PY
+
       - name: Verify Pages output
         shell: bash
         run: |
@@ -78,6 +105,8 @@ jobs:
           test -s _site/app/index.html
           test -s _site/app/main.dart.js
           grep -Fq '<base href="/olympus-view-and-delete/app/">' _site/app/index.html
+          grep -Fq 'https://dpolarov.github.io/olympus-view-and-delete/app/' _site/index.html
+          ! grep -Fq 'releases/latest/download/OlympusView-Web.zip' _site/index.html
           test ! -d _site/docs
           echo "Landing page: _site/index.html"
           echo "Flutter Web: _site/app/index.html"
