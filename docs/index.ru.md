@@ -59,11 +59,17 @@ Olympus View не связан с OM Digital Solutions, Olympus Corporation ил
 
 https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk
 
-### Windows и Web
+### Windows
 
-Сборки хранятся в каталоге releases репозитория:
+Последняя portable-сборка Windows x64:
 
-https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases
+https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Windows.zip
+
+### Web
+
+Последняя Web-сборка ZIP. Распакуйте архив, запустите каталог через локальный HTTP-сервер (в архиве есть README) и подключите компьютер к WiFi камеры.
+
+https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Web.zip
 
 ## Важное изменение подписи в v1.3.6
 

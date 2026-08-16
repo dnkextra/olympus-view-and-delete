@@ -102,15 +102,15 @@ https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/Oly
 
 ### Windows
 
-A portable Windows build is stored in the repository releases directory:
+Latest portable Windows x64 build:
 
-https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases
+https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Windows.zip
 
 ### Web
 
-A web build is also stored in the repository releases directory. The computer must still be connected to the camera's WiFi network for camera access.
+Latest Web build ZIP. Extract it, serve the directory over local HTTP (the ZIP includes a README), and connect the computer to the camera's WiFi network before using Olympus View.
 
-https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases
+https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Web.zip
 
 ## Important signing migration in v1.3.6
 

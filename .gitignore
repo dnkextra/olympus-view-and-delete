@@ -60,8 +60,8 @@ app.*.map.json
 # External projects
 /olympus-wifi/
 
-# Releases folder
-#/releases/
+# Generated release artifacts belong in GitHub Releases, never in Git.
+/releases/
 
 # IDE
 .vscode/

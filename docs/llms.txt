@@ -29,5 +29,7 @@ Important upgrade note: direct APK users on v1.3.5 or older must uninstall the o
 ## Optional
 
 - [Android APK](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk): Latest direct-install Android APK binary.
+- [Windows x64 ZIP](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Windows.zip): Latest portable Windows desktop build.
+- [Web ZIP](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Web.zip): Latest static Flutter Web build with local HTTP run instructions.
 - [Human-readable website](https://dpolarov.github.io/olympus-view-and-delete/): Multilingual project landing page.
 - [HTML privacy policy](https://dpolarov.github.io/olympus-view-and-delete/privacy.html): Browser-oriented privacy policy.
