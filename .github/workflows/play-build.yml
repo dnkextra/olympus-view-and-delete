@@ -8,6 +8,7 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.44.7"
+  LEGACY_DEBUG_CERT_SHA256: "3786a41c932c63183fc36dd388cb6be397775392d3bf6e7f4fb16dc28cae841e"
 
 jobs:
   play-bundle:
@@ -39,27 +40,56 @@ jobs:
           STORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ secrets.PLAY_UPLOAD_CERT_SHA256 }}
         run: |
           set -euo pipefail
           [[ -n "$KEYSTORE_B64" ]] || { echo "Missing PLAY_UPLOAD_KEYSTORE_BASE64"; exit 1; }
           [[ -n "$STORE_PASSWORD" ]] || { echo "Missing PLAY_UPLOAD_KEYSTORE_PASSWORD"; exit 1; }
           [[ -n "$KEY_ALIAS" ]] || { echo "Missing PLAY_UPLOAD_KEY_ALIAS"; exit 1; }
           [[ -n "$KEY_PASSWORD" ]] || { echo "Missing PLAY_UPLOAD_KEY_PASSWORD"; exit 1; }
+          [[ -n "$EXPECTED_CERT_SHA256" ]] || { echo "Missing PLAY_UPLOAD_CERT_SHA256"; exit 1; }
 
-      - name: Restore Play upload key
+      - name: Restore and verify Play upload key
         shell: bash
         env:
           KEYSTORE_B64: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ secrets.PLAY_UPLOAD_CERT_SHA256 }}
+          APP_SIGNING_CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
         run: |
           set -euo pipefail
           printf '%s' "$KEYSTORE_B64" | base64 --decode > android/app/play-upload.jks
-          keytool -list \
-            -keystore android/app/play-upload.jks \
-            -storepass "$STORE_PASSWORD" \
-            -alias "$KEY_ALIAS" >/dev/null
+
+          actual_cert_sha256="$(
+            keytool -list -v \
+              -keystore android/app/play-upload.jks \
+              -storepass "$STORE_PASSWORD" \
+              -alias "$KEY_ALIAS" \
+            | sed -n 's/.*SHA256: //p' \
+            | head -n 1 \
+            | tr -d ':' \
+            | tr '[:upper:]' '[:lower:]'
+          )"
+          expected_cert_sha256="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ': ' | tr '[:upper:]' '[:lower:]')"
+          app_signing_cert_sha256="$(printf '%s' "$APP_SIGNING_CERT_SHA256" | tr -d ': ' | tr '[:upper:]' '[:lower:]')"
+
+          echo "Play upload certificate SHA-256: $actual_cert_sha256"
+          if [[ "$actual_cert_sha256" == "$LEGACY_DEBUG_CERT_SHA256" ]]; then
+            echo "ERROR: legacy Android debug certificate cannot be a Play upload key."
+            exit 1
+          fi
+          if [[ "$actual_cert_sha256" != "$expected_cert_sha256" ]]; then
+            echo "ERROR: wrong Google Play upload certificate."
+            echo "Expected: $expected_cert_sha256"
+            echo "Actual:   $actual_cert_sha256"
+            exit 1
+          fi
+          if [[ -n "$app_signing_cert_sha256" && "$actual_cert_sha256" == "$app_signing_cert_sha256" ]]; then
+            echo "ERROR: Play upload key must be different from the production app-signing key."
+            exit 1
+          fi
 
           cat > android/key.properties <<EOF
           storeFile=${GITHUB_WORKSPACE}/android/app/play-upload.jks
