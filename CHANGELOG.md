@@ -1,24 +1,28 @@
 # Changelog
 
-## [Unreleased]
+## [1.3.4] - 2026-08-16
 
 ### Added
-- **GitHub APK auto-update check**: the Android GitHub build checks the latest published GitHub release at startup, offers newer versions, downloads the APK in the background and shows an install-ready notification. The Google Play flavor explicitly disables external APK updates.
-- **Persistent downloaded-file markers**: successfully downloaded camera files are recorded by camera path, size and FAT timestamp and remain highlighted after app restarts and normal app updates.
+- **GitHub APK auto-update**: the direct Android build checks the latest GitHub release at startup, can download a newer APK in the background and shows an install-ready notification. The Google Play flavor explicitly disables external APK updates.
+- **Persistent downloaded-file markers**: successfully downloaded camera files are remembered by camera path, size and FAT timestamp and remain highlighted after app restarts and normal app updates.
 - **Android background camera downloads**: selected files can continue downloading through a `connectedDevice` foreground service while Olympus View is backgrounded or the screen is off, with progress and completion notifications.
-- **Four-finger diagnostics screen**: hold four fingers anywhere in the app to open runtime diagnostics with the installed package version/build, source version, embedded build time and Git commit, Android/device/ABI details, display/memory/storage information, active network, camera endpoint, permissions, saved-camera/download state and process metadata. The report can be copied to the clipboard and does not expose saved Wi-Fi passwords.
+- **Runtime diagnostics**: four-finger gesture, long-press About entry and a visible Debug information fallback open a diagnostics screen with installed version/build, embedded build metadata, device/ABI, display/memory/storage, active network, camera endpoint, permissions and download state without exposing saved Wi-Fi passwords.
 
 ### Changed
-- About now reads the installed Android package version/build at runtime instead of displaying a duplicated Dart constant.
-- Four-finger diagnostics opens immediately on the fourth touch; long-pressing the About icon is a fallback diagnostics entry point.
-- Local release builds explicitly remove Flutter/Android project caches and use the same non-obfuscated Dart AOT mode as CI so stale `libapp.so` is rejected by strict build metadata verification.
-- Diagnostic test build bumped to **1.3.4+11**.
-- Android distribution is split into `github` and `play` flavors so the GitHub APK can request package installation while the Play bundle does not request `REQUEST_INSTALL_PACKAGES`.
-- Android `versionName` and `versionCode` now come directly from the Flutter Gradle plugin instead of potentially stale values in `android/local.properties`.
-- `build_release.cmd` now requires the `master` branch, embeds build time/Git commit/Flutter version for diagnostics, performs `flutter clean` before every local release build, passes explicit build-name/build-number values and verifies the finished APK manifest when `aapt` is available. The clean step prevents a new APK manifest from being packaged with a stale cached Dart `libapp.so`.
-- `install.cmd` now force-stops any old Olympus View process before replacing the APK, prints the actually installed Android `versionName`/`versionCode`, and starts a fresh app process after installation.
-- The in-app About changelog now highlights the current 1.3.4 Android features instead of the older preview-only list.
-- Test build bumped to **1.3.4+10** for diagnostics verification.
+- Full-screen camera traffic now prioritizes the **visible preview first**, an active file download second, and neighboring preview preloads last; gallery thumbnail network work pauses while the viewer is open.
+- Neighbor previews preload in controlled **right/left pairs**: `(+1, -1)`, then `(+2, -2)`, then `(+3, -3)`, with at most two parallel camera requests per pair and preloading paused during foreground/background downloads.
+- About reads the installed Android package version/build at runtime instead of relying on a duplicated Dart constant.
+- Android distribution is split into `github` and `play` flavors so the GitHub APK can self-update while the Play build does not request `REQUEST_INSTALL_PACKAGES`.
+- Android `versionName` and `versionCode` come directly from the Flutter Gradle plugin.
+- Local release builds now clean stale Flutter/Android artifacts, embed build time/Git commit/Flutter version and strictly verify packaged Dart AOT metadata; `install.cmd` force-stops the old process, verifies the installed version and starts a fresh process after replacement.
+- Version set to **1.3.4+13**.
+
+### Fixed
+- Downloading while the current preview is still loading no longer leaves the preview spinner stuck; downloaded JPEG bytes can immediately satisfy the preview.
+- Full-screen preview now shows the green downloaded marker for files already present in persistent download history.
+- Diagnostics navigation is deferred through the root navigator and raw-pointer handling makes the multi-touch/About entry deterministic on devices that coalesce or reserve gestures.
+- Release builds no longer risk packaging stale `libapp.so` from a previous build; CI/local metadata verification rejects mismatched AOT output.
+- Latest Android CI passes analyzer, the full test suite, release APK/AAB builds, package-version verification, Dart AOT metadata verification, Play-flavor policy validation and 16 KB page-size compatibility.
 
 ## [1.3.2] - 2026-08-15
 
@@ -40,13 +44,6 @@
 - Removed tracked local Android build state (`android/local.properties`, `.gradle` cache and stale generated plugin registrant) from the repository.
 
 ### Fixed
-- Full-screen camera traffic is now serialized by priority: current visible preview first, active file download second, neighboring preview preloads last. Gallery thumbnail network work pauses while the viewer is open.
-- Downloading while the current preview is still loading no longer leaves the preview spinner stuck; downloaded JPEG bytes can immediately satisfy the preview.
-- Full-screen preview now shows a green `download_done` marker for files already recorded in persistent download history.
-- Diagnostics entry is more reliable: the About icon uses a direct long-press target without an `IconButton` tooltip conflict, and the four-finger recognizer tolerates Android pointer coalescing/cancellation.
-- Neighbor full-screen previews now preload in controlled **right/left pairs**: `(+1, -1)`, then `(+2, -2)`, then `(+3, -3)`. Each pair may use at most two parallel camera requests; the next pair waits for both to finish, and foreground/background downloads pause further preloading.
-- Diagnostics navigation is deferred through the root navigator; holding the About icon now uses raw pointer timing, and About includes a visible **Debug information** fallback button for devices that reserve multi-finger gestures.
-- Diagnostic test build bumped to **1.3.4+13**.
 - Release APK and AAB now build successfully in GitHub Actions.
 - Fixed the 16 KB checker so it validates ELF `LOAD` segment alignment correctly and follows Android's 64-bit ABI verification scope.
 - Fixed Android photo saving under scoped storage on recent Android versions.
