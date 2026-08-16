@@ -34,10 +34,10 @@ if errorlevel 1 (
 
 echo ========================================
 echo  Olympus View - Install APK to device
- echo ========================================
+echo ========================================
 echo.
 echo APK:
- echo   %APK%
+echo   %APK%
 echo.
 echo Connected devices:
 "%ADB%" devices
