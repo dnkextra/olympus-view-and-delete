@@ -12,6 +12,12 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://dpolarov.github.io/olympus-view-and-delete/"/>
   </url>
   <url>
+    <loc>https://dpolarov.github.io/olympus-view-and-delete/app/</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://dpolarov.github.io/olympus-view-and-delete/privacy.html</loc>
     <lastmod>2026-08-15</lastmod>
     <changefreq>monthly</changefreq>
