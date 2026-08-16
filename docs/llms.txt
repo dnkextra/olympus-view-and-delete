@@ -1,0 +1,33 @@
+# Olympus View
+
+> Olympus View is a free, source-available cross-platform WiFi file manager for Olympus and OM System cameras. It can browse, download, and delete photos directly on compatible cameras over the local camera WiFi network. Android supports QR-code connection and background downloads; Windows and Web builds are also available.
+
+Olympus View is an unofficial community project and is not affiliated with, endorsed by, or sponsored by OM Digital Solutions, Olympus Corporation, or OM System.
+
+Current stable Android release: **v1.3.6 (build 15), released August 16, 2026**.
+
+Important upgrade note: direct APK users on v1.3.5 or older must uninstall the old build and install v1.3.6 once because v1.3.6 introduced the permanent production Android signing certificate. Future direct APK updates use the permanent signing identity and do not require another reinstall.
+
+## Product documentation
+
+- [Product overview — English](https://dpolarov.github.io/olympus-view-and-delete/index.md): Features, supported cameras, installation, usage, downloads, technical details, and current release information.
+- [Описание продукта — Русский](https://dpolarov.github.io/olympus-view-and-delete/index.ru.md): Возможности, поддерживаемые камеры, установка, использование, загрузки и технические сведения.
+- [Опис продукту — Українська](https://dpolarov.github.io/olympus-view-and-delete/index.uk.md): Можливості, підтримувані камери, встановлення, використання, завантаження та технічні відомості.
+- [Privacy policy](https://dpolarov.github.io/olympus-view-and-delete/privacy.md): App and project-website privacy and data-handling information.
+
+## Releases and source
+
+- [Latest GitHub release](https://github.com/dpolarov/olympus-view-and-delete/releases/latest): Current release notes and downloadable release assets.
+- [Project README](https://raw.githubusercontent.com/dpolarov/olympus-view-and-delete/master/README.md): Developer-oriented project overview, build instructions, protocol notes, and usage.
+- [Changelog](https://raw.githubusercontent.com/dpolarov/olympus-view-and-delete/master/CHANGELOG.md): Detailed version history.
+
+## Development
+
+- [Source repository](https://github.com/dpolarov/olympus-view-and-delete): Flutter/Dart source, issues, pull requests, workflows, and releases.
+- [Google Play publishing notes](https://raw.githubusercontent.com/dpolarov/olympus-view-and-delete/master/docs/GOOGLE_PLAY.md): Android/Google Play build, signing, and publishing documentation.
+
+## Optional
+
+- [Android APK](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk): Latest direct-install Android APK binary.
+- [Human-readable website](https://dpolarov.github.io/olympus-view-and-delete/): Multilingual project landing page.
+- [HTML privacy policy](https://dpolarov.github.io/olympus-view-and-delete/privacy.html): Browser-oriented privacy policy.
