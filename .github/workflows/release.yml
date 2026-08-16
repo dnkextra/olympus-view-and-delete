@@ -26,20 +26,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-
       - name: Install dependencies
         run: flutter pub get
-
       - name: Analyze
         run: flutter analyze
-
       - name: Test
         run: flutter test
 
@@ -51,14 +47,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -92,11 +86,11 @@ jobs:
           EXPECTED_CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
         run: |
           set -euo pipefail
-          printf '%s' "$KEYSTORE_B64" | base64 --decode > android/app/olympus-release.jks
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > android/app/olympus-release.p12
 
           actual_cert_sha256="$(
-            keytool -list -v \
-              -keystore android/app/olympus-release.jks \
+            keytool -list -v -storetype PKCS12 \
+              -keystore android/app/olympus-release.p12 \
               -storepass "$STORE_PASSWORD" \
               -alias "$KEY_ALIAS" \
             | sed -n 's/.*SHA256: //p' \
@@ -119,7 +113,7 @@ jobs:
           fi
 
           cat > android/key.properties <<EOF
-          storeFile=${GITHUB_WORKSPACE}/android/app/olympus-release.jks
+          storeFile=${GITHUB_WORKSPACE}/android/app/olympus-release.p12
           storePassword=${STORE_PASSWORD}
           keyAlias=${KEY_ALIAS}
           keyPassword=${KEY_PASSWORD}
@@ -127,37 +121,31 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
       - name: Prepare build metadata
         shell: bash
         run: |
           echo "BUILD_TIME_UTC=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
           echo "BUILD_GIT_COMMIT=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
-
       - name: Build signed GitHub APK
         run: >-
           flutter build apk --flavor github --release
           --dart-define=OLYMPUS_BUILD_TIME_UTC=${BUILD_TIME_UTC}
           --dart-define=OLYMPUS_GIT_COMMIT=${BUILD_GIT_COMMIT}
           --dart-define=OLYMPUS_FLUTTER_VERSION=${FLUTTER_VERSION}
-
       - name: Verify Android 16 KB page-size compatibility
         shell: bash
         run: bash scripts/check_android_16kb.sh build/app/outputs/flutter-apk/app-github-release.apk
-
       - name: Build signed GitHub AAB
         run: >-
           flutter build appbundle --flavor github --release
           --dart-define=OLYMPUS_BUILD_TIME_UTC=${BUILD_TIME_UTC}
           --dart-define=OLYMPUS_GIT_COMMIT=${BUILD_GIT_COMMIT}
           --dart-define=OLYMPUS_FLUTTER_VERSION=${FLUTTER_VERSION}
-
       - name: Stage Android files
         shell: bash
         run: |
           cp build/app/outputs/flutter-apk/app-github-release.apk OlympusView-Android.apk
           cp build/app/outputs/bundle/githubRelease/app-github-release.aab OlympusView-Android.aab
-
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v6
         with:
@@ -166,11 +154,10 @@ jobs:
             OlympusView-Android.apk
             OlympusView-Android.aab
           if-no-files-found: error
-
       - name: Remove signing material
         if: always()
         shell: bash
-        run: rm -f android/app/olympus-release.jks android/key.properties
+        run: rm -f android/app/olympus-release.p12 android/key.properties
 
   publish:
     name: Publish Android GitHub Release
@@ -179,13 +166,11 @@ jobs:
     steps:
       - name: Checkout changelog
         uses: actions/checkout@v6
-
       - name: Download Android artifacts
         uses: actions/download-artifact@v7
         with:
           name: release-android
           path: dist
-
       - name: Prepare release notes
         shell: bash
         env:
@@ -198,18 +183,15 @@ jobs:
             tag="${INPUT_TAG:-v1.3.6}"
           fi
           echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
-
           version="${tag#v}"
           awk -v version="$version" '
             $0 ~ "^## \\[" version "\\]" {capture=1; next}
             capture && $0 ~ "^## \\[" {exit}
             capture {print}
           ' CHANGELOG.md > release-notes.md
-
           if [[ ! -s release-notes.md ]]; then
             echo "Olympus View $tag" > release-notes.md
           fi
-
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
