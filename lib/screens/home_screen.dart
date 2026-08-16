@@ -619,6 +619,27 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() => _selectedPaths.clear());
   }
 
+  void _selectDownloaded() {
+    final downloadedPaths = _filteredFiles
+        .where((file) => _downloadedKeys.contains(file.downloadHistoryKey))
+        .map((file) => file.fullPath)
+        .toSet();
+
+    setState(() {
+      _selectedPaths
+        ..clear()
+        ..addAll(downloadedPaths);
+    });
+
+    if (downloadedPaths.isEmpty) {
+      _showSnack(_localizedText(
+        en: 'No downloaded files in the current view.',
+        ru: 'В текущем списке нет скачанных файлов.',
+        uk: 'У поточному списку немає завантажених файлів.',
+      ));
+    }
+  }
+
   void _selectByDates() {
     final selectedDates = <String>{};
     for (final f in _filteredFiles) {
@@ -1422,6 +1443,15 @@ class _HomeScreenState extends State<HomeScreen>
               icon: const Icon(Icons.deselect),
               tooltip: 'Deselect all',
               onPressed: _deselectAll,
+            ),
+            IconButton(
+              icon: const Icon(Icons.download_done, color: Color(0xFF2ECC71)),
+              tooltip: _localizedText(
+                en: 'Select downloaded',
+                ru: 'Выделить скачанные',
+                uk: 'Виділити завантажені',
+              ),
+              onPressed: _selectDownloaded,
             ),
             IconButton(
               icon: const Icon(Icons.date_range),
