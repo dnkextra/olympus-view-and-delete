@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.3.6] - 2026-08-16
+
+### Important — one-time reinstall for 1.3.5 and older
+- **Android signing certificate changed** from the temporary legacy debug certificate to the permanent production app-signing certificate. Android cannot update across unrelated signing certificates, so users of **1.3.5 and older must uninstall Olympus View and install 1.3.6 once**. Future GitHub APK updates will then work normally without another reinstall.
+- Uninstalling the old build clears Olympus View's local settings and downloaded-file marker history. It does **not** delete photos already saved on the phone or files on the camera.
+
+### Added
+- **Visible app-update progress**: the GitHub build shows APK bytes/total and percent directly in Olympus View instead of disappearing into an opaque background download.
+- **Update network status and recovery**: paused downloads clearly show when Android is waiting for internet; failed downloads can be retried and active downloads can be cancelled.
+- **Install from inside the app**: when the APK reaches `DownloadManager.STATUS_SUCCESSFUL`, Olympus View opens the Android installer and also keeps an **Install** button available as a fallback even when notifications are disabled.
+- **Select downloaded files**: selection mode now has a green `download_done` action that selects every currently visible file carrying the persistent green downloaded marker, making it easy to delete already-copied files from the camera.
+- **Production signing setup tool**: `scripts/generate_android_signing_keys.ps1` generates a long-lived production app-signing key plus a separate Google Play upload key and prepares the required GitHub Actions secret values locally.
+
+### Changed
+- Camera auto-connect is suppressed while an application update is downloading so connecting to a camera Wi-Fi network without internet cannot silently stall the APK download.
+- Notification permission is no longer required to start an app update; in-app progress and installation controls remain available without notifications.
+- GitHub release builds now require an explicit production keystore and refuse the legacy debug certificate. The release workflow verifies the production certificate SHA-256 stored in GitHub Secrets.
+- Google Play AAB builds use and verify a **separate upload key**. The production app-signing key is intended to be supplied to Play App Signing so GitHub and Play installations share the same final signing identity.
+- Version set to **1.3.6+15**.
+
+### Fixed
+- Starting an in-app update no longer leaves the user with no visible indication of whether the APK is downloading, paused, failed or ready to install.
+- Auto-connecting to the camera can no longer steal internet connectivity while an APK update is active.
+
 ## [1.3.5] - 2026-08-16
 
 ### Added

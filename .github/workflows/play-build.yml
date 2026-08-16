@@ -8,6 +8,7 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.44.7"
+  LEGACY_DEBUG_CERT_SHA256: "3786a41c932c63183fc36dd388cb6be397775392d3bf6e7f4fb16dc28cae841e"
 
 jobs:
   play-bundle:
@@ -17,14 +18,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -39,30 +38,59 @@ jobs:
           STORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ secrets.PLAY_UPLOAD_CERT_SHA256 }}
         run: |
           set -euo pipefail
           [[ -n "$KEYSTORE_B64" ]] || { echo "Missing PLAY_UPLOAD_KEYSTORE_BASE64"; exit 1; }
           [[ -n "$STORE_PASSWORD" ]] || { echo "Missing PLAY_UPLOAD_KEYSTORE_PASSWORD"; exit 1; }
           [[ -n "$KEY_ALIAS" ]] || { echo "Missing PLAY_UPLOAD_KEY_ALIAS"; exit 1; }
           [[ -n "$KEY_PASSWORD" ]] || { echo "Missing PLAY_UPLOAD_KEY_PASSWORD"; exit 1; }
+          [[ -n "$EXPECTED_CERT_SHA256" ]] || { echo "Missing PLAY_UPLOAD_CERT_SHA256"; exit 1; }
 
-      - name: Restore Play upload key
+      - name: Restore and verify Play upload key
         shell: bash
         env:
           KEYSTORE_B64: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ secrets.PLAY_UPLOAD_CERT_SHA256 }}
+          APP_SIGNING_CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
         run: |
           set -euo pipefail
-          printf '%s' "$KEYSTORE_B64" | base64 --decode > android/app/play-upload.jks
-          keytool -list \
-            -keystore android/app/play-upload.jks \
-            -storepass "$STORE_PASSWORD" \
-            -alias "$KEY_ALIAS" >/dev/null
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > android/app/play-upload.p12
+
+          actual_cert_sha256="$(
+            keytool -list -v -storetype PKCS12 \
+              -keystore android/app/play-upload.p12 \
+              -storepass "$STORE_PASSWORD" \
+              -alias "$KEY_ALIAS" \
+            | sed -n 's/.*SHA256: //p' \
+            | head -n 1 \
+            | tr -d ':' \
+            | tr '[:upper:]' '[:lower:]'
+          )"
+          expected_cert_sha256="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ': ' | tr '[:upper:]' '[:lower:]')"
+          app_signing_cert_sha256="$(printf '%s' "$APP_SIGNING_CERT_SHA256" | tr -d ': ' | tr '[:upper:]' '[:lower:]')"
+
+          echo "Play upload certificate SHA-256: $actual_cert_sha256"
+          if [[ "$actual_cert_sha256" == "$LEGACY_DEBUG_CERT_SHA256" ]]; then
+            echo "ERROR: legacy Android debug certificate cannot be a Play upload key."
+            exit 1
+          fi
+          if [[ "$actual_cert_sha256" != "$expected_cert_sha256" ]]; then
+            echo "ERROR: wrong Google Play upload certificate."
+            echo "Expected: $expected_cert_sha256"
+            echo "Actual:   $actual_cert_sha256"
+            exit 1
+          fi
+          if [[ -n "$app_signing_cert_sha256" && "$actual_cert_sha256" == "$app_signing_cert_sha256" ]]; then
+            echo "ERROR: Play upload key must be different from the production app-signing key."
+            exit 1
+          fi
 
           cat > android/key.properties <<EOF
-          storeFile=${GITHUB_WORKSPACE}/android/app/play-upload.jks
+          storeFile=${GITHUB_WORKSPACE}/android/app/play-upload.p12
           storePassword=${STORE_PASSWORD}
           keyAlias=${KEY_ALIAS}
           keyPassword=${KEY_PASSWORD}
@@ -70,41 +98,33 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
       - name: Analyze
         run: flutter analyze
-
       - name: Test
         run: flutter test
-
       - name: Prepare build metadata
         shell: bash
         run: |
           echo "BUILD_TIME_UTC=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
           echo "BUILD_GIT_COMMIT=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
-
       - name: Build Play release APK for compatibility checks
         run: >-
           flutter build apk --flavor play --release
           --dart-define=OLYMPUS_BUILD_TIME_UTC=${BUILD_TIME_UTC}
           --dart-define=OLYMPUS_GIT_COMMIT=${BUILD_GIT_COMMIT}
           --dart-define=OLYMPUS_FLUTTER_VERSION=${FLUTTER_VERSION}
-
       - name: Verify Android 16 KB page-size compatibility
         shell: bash
         run: bash scripts/check_android_16kb.sh build/app/outputs/flutter-apk/app-play-release.apk
-
       - name: Build Play app bundle
         run: >-
           flutter build appbundle --flavor play --release
           --dart-define=OLYMPUS_BUILD_TIME_UTC=${BUILD_TIME_UTC}
           --dart-define=OLYMPUS_GIT_COMMIT=${BUILD_GIT_COMMIT}
           --dart-define=OLYMPUS_FLUTTER_VERSION=${FLUTTER_VERSION}
-
       - name: Stage Play bundle
         shell: bash
         run: cp build/app/outputs/bundle/playRelease/app-play-release.aab OlympusView-GooglePlay.aab
-
       - name: Upload Play bundle artifact
         uses: actions/upload-artifact@v6
         with:
@@ -112,8 +132,7 @@ jobs:
           path: OlympusView-GooglePlay.aab
           if-no-files-found: error
           retention-days: 14
-
       - name: Remove Play signing material
         if: always()
         shell: bash
-        run: rm -f android/app/play-upload.jks android/key.properties
+        run: rm -f android/app/play-upload.p12 android/key.properties

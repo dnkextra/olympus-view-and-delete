@@ -30,6 +30,48 @@ class InstalledAppVersion {
   String get display => 'v$versionName (build $versionCode)';
 }
 
+class AppUpdateDownloadStatus {
+  const AppUpdateDownloadStatus({
+    required this.state,
+    required this.version,
+    required this.downloadedBytes,
+    required this.totalBytes,
+    required this.reason,
+  });
+
+  factory AppUpdateDownloadStatus.fromMap(Map<String, dynamic>? map) {
+    int asInt(Object? value) {
+      if (value is int) return value;
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    return AppUpdateDownloadStatus(
+      state: map?['state']?.toString() ?? 'none',
+      version: map?['version']?.toString() ?? '',
+      downloadedBytes: asInt(map?['downloadedBytes']),
+      totalBytes: asInt(map?['totalBytes']),
+      reason: map?['reason']?.toString() ?? '',
+    );
+  }
+
+  final String state;
+  final String version;
+  final int downloadedBytes;
+  final int totalBytes;
+  final String reason;
+
+  bool get isActive =>
+      state == 'pending' || state == 'running' || state == 'paused';
+  bool get isReady => state == 'successful';
+  bool get isFailed => state == 'failed';
+  bool get isIdle => state == 'none';
+
+  double? get progress {
+    if (totalBytes <= 0) return null;
+    return (downloadedBytes / totalBytes).clamp(0.0, 1.0);
+  }
+}
+
 class AppUpdateService {
   AppUpdateService._();
 
@@ -155,6 +197,46 @@ class AppUpdateService {
       'url': release.apkUrl,
       'version': release.version,
     });
+  }
+
+  static Future<AppUpdateDownloadStatus> getUpdateDownloadStatus() async {
+    if (!supportsExternalUpdates) {
+      return const AppUpdateDownloadStatus(
+        state: 'none',
+        version: '',
+        downloadedBytes: 0,
+        totalBytes: 0,
+        reason: '',
+      );
+    }
+    try {
+      final status = await _channel.invokeMapMethod<String, dynamic>(
+        'getUpdateDownloadStatus',
+      );
+      return AppUpdateDownloadStatus.fromMap(status);
+    } on PlatformException catch (error) {
+      AppLogger.debug(
+        'update status lookup failed: $error',
+        name: 'app_update',
+      );
+      return const AppUpdateDownloadStatus(
+        state: 'none',
+        version: '',
+        downloadedBytes: 0,
+        totalBytes: 0,
+        reason: '',
+      );
+    }
+  }
+
+  static Future<bool> installDownloadedUpdate() async {
+    if (!supportsExternalUpdates) return false;
+    return await _channel.invokeMethod<bool>('installDownloadedUpdate') ?? false;
+  }
+
+  static Future<void> cancelUpdateDownload() async {
+    if (!supportsExternalUpdates) return;
+    await _channel.invokeMethod<void>('cancelUpdateDownload');
   }
 
   static String _cleanReleaseNotes(String raw) {

@@ -2,76 +2,55 @@
 
 This document describes the Play-specific release path. It is intentionally separate from the GitHub APK release path.
 
-## Important: two signing channels
+## Important: permanent signing model from v1.3.6
 
-Olympus View already has directly distributed APKs signed with the legacy Android debug certificate:
+Releases through `v1.3.5` used a temporary legacy Android debug certificate. Starting with **v1.3.6**, Olympus View intentionally switches once to a permanent production signing identity.
 
-```text
-SHA-256: 3786a41c932c63183fc36dd388cb6be397775392d3bf6e7f4fb16dc28cae841e
-```
+Users of `v1.3.5` and older direct APKs must uninstall the old app and install `v1.3.6` once because Android does not allow an APK signed by an unrelated certificate to replace the installed package. After that one-time migration, normal GitHub self-updates work again.
 
-Keep that key only for GitHub/direct APK updates so existing sideloaded installations can continue to update.
+### Recommended cross-store model
 
-Do **not** use that debug certificate to publish the app on Google Play. Google Play requires a proper release/upload key and Play App Signing.
+Use **two different private keys**:
 
-### Recommended Play model
+1. `olympus-app-signing.p12` — the long-lived **production app-signing key**. GitHub/direct APK releases are signed with this key. When enrolling the new Play listing in Play App Signing, choose **Change app signing key / provide your own key** and securely provide this same key through the Play Console PEPK flow. This keeps the final APK signing certificate identical for GitHub and Google Play distributions.
+2. `olympus-play-upload.p12` — a separate **Google Play upload key**. GitHub Actions uses this key only to sign the AAB uploaded to Play. Google verifies the uploader and then signs delivered APKs with the production app-signing key held by Play App Signing.
 
-- GitHub APK: legacy key preserved for backward-compatible sideload updates.
-- Google Play AAB: new strong **upload key** kept by the developer.
-- Google Play installed APKs: signed by the **Play App Signing key** protected by Google.
+Do not use the old debug certificate for either role. Do not commit either private PKCS12 keystore to Git.
 
-Because the Play signing identity will differ from the legacy sideload identity, a user moving from the old GitHub APK to the Play version may need to uninstall the old APK once before installing the Play build.
+Google recommends keeping the upload key separate from the app-signing key. The upload key can be reset through Play if it is lost or compromised; the app-signing identity is the durable identity users' Android devices trust for updates.
 
-## 1. Generate a dedicated Play upload key
+## 1. Generate both permanent keys locally
 
-PowerShell:
+From PowerShell at the repository root:
 
 ```powershell
-keytool -genkeypair -v `
-  -keystore "$env:USERPROFILE\olympus-play-upload.jks" `
-  -storetype JKS `
-  -keyalg RSA `
-  -keysize 4096 `
-  -validity 10000 `
-  -alias olympus-play-upload
+powershell -ExecutionPolicy Bypass -File .\scripts\generate_android_signing_keys.ps1
 ```
 
-Use a strong unique password and store it in a password manager. Do not reuse the legacy `android` debug-keystore password.
+The script creates private signing material under `%USERPROFILE%\.olympus-view\signing\`, writes `android/key.properties` for local GitHub/direct release builds, and creates a temporary `github-secrets.txt` containing the values needed for GitHub Actions.
 
-Verify it:
+**Immediately make at least two protected backups of both PKCS12 files.** Never regenerate `olympus-app-signing.p12` after publishing v1.3.6.
 
-```powershell
-keytool -list -v `
-  -keystore "$env:USERPROFILE\olympus-play-upload.jks" `
-  -alias olympus-play-upload
-```
+## 2. Configure GitHub Actions secrets
 
-Keep at least two protected copies of this JKS.
+Repository -> Settings -> Secrets and variables -> Actions.
 
-## 2. Add the Play upload key to GitHub Actions
-
-Convert the JKS to one-line Base64:
-
-```powershell
-$path = "$env:USERPROFILE\olympus-play-upload.jks"
-$b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($path))
-Set-Content -NoNewline `
-  -Path "$env:USERPROFILE\olympus-play-upload.base64.txt" `
-  -Value $b64
-```
-
-Repository -> Settings -> Secrets and variables -> Actions -> New repository secret.
-
-Create:
-
-| Secret | Value |
+| Secret | Purpose |
 | --- | --- |
-| `PLAY_UPLOAD_KEYSTORE_BASE64` | Entire contents of `olympus-play-upload.base64.txt` |
-| `PLAY_UPLOAD_KEYSTORE_PASSWORD` | Strong JKS password |
+| `ANDROID_KEYSTORE_BASE64` | production app-signing PKCS12 keystore for GitHub APK/AAB releases |
+| `ANDROID_KEYSTORE_PASSWORD` | app-signing keystore password |
+| `ANDROID_KEY_ALIAS` | `olympus-app-signing` |
+| `ANDROID_KEY_PASSWORD` | app-signing private-key password |
+| `ANDROID_SIGNING_CERT_SHA256` | pinned production certificate fingerprint |
+| `PLAY_UPLOAD_KEYSTORE_BASE64` | dedicated Play upload PKCS12 keystore |
+| `PLAY_UPLOAD_KEYSTORE_PASSWORD` | Play upload keystore password |
 | `PLAY_UPLOAD_KEY_ALIAS` | `olympus-play-upload` |
-| `PLAY_UPLOAD_KEY_PASSWORD` | Key password |
+| `PLAY_UPLOAD_KEY_PASSWORD` | Play upload private-key password |
+| `PLAY_UPLOAD_CERT_SHA256` | pinned Play upload certificate fingerprint |
 
-Delete the temporary Base64 text file after the secret has been saved. Keep the JKS backups.
+Delete `github-secrets.txt` after the values are stored in GitHub and your password manager. Keep the PKCS12 backups offline/protected.
+
+The GitHub release workflow rejects the old debug certificate and rejects a production certificate whose SHA-256 does not match `ANDROID_SIGNING_CERT_SHA256`. The Play workflow separately verifies `PLAY_UPLOAD_CERT_SHA256` and rejects using the production app-signing key as the upload key.
 
 ## 3. Build the Google Play bundle
 
@@ -198,8 +177,8 @@ Do not reuse a Play version code after it has been uploaded.
 For a new Play application:
 
 1. Create the application in Play Console using the existing Android package ID `com.flynew.photomanager` unless you intentionally decide to start a different package identity.
-2. Configure Play App Signing and let Google protect the app-signing key.
-3. Register/use the upload key created above.
+2. Configure Play App Signing, choose to provide your own app-signing key, and securely upload `olympus-app-signing.p12` using the PEPK instructions shown by Play Console.
+3. Register the separate `olympus-play-upload` certificate as the upload key.
 4. Start with Internal testing.
 5. Upload `OlympusView-GooglePlay.aab`.
 6. Resolve all automated pre-launch / policy warnings.
