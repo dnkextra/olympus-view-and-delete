@@ -10,6 +10,8 @@ Unlike the official **OI.Share** app, Olympus View can:
 
 - **Delete files from the camera** — OI.Share cannot do this
 - **Select and download groups of files** by date in one tap
+- **Download in the background on Android** while the app is minimized or the screen is off
+- **Remember downloaded files** with persistent green markers across app restarts
 - **Show/hide RAW (ORF)** files to remove duplicates
 - **Run on Windows and in a browser**, not just on mobile
 - **Fully open source** — modify it to suit your needs
@@ -39,6 +41,8 @@ Unlike the official **OI.Share** app, Olympus View can:
 
 ### Download
 - Android: saves to `DCIM/OlympusView` — photos appear in gallery immediately
+- Android: optional **background download** continues while Olympus View is minimized or the screen is off
+- Android: successfully transferred files keep a persistent green **downloaded** marker
 - Windows: saves to documents folder
 - Web: browser download
 
@@ -63,7 +67,7 @@ Pre-built releases are in the `releases/` folder:
 
 | Platform | File |
 |----------|------|
-| Android  | `releases/OlympusView.apk` |
+| Android  | `releases/OlympusView-Android.apk` |
 | Windows  | `releases/windows/olympus_flutter.exe` |
 | Web      | `releases/web/` (open `index.html`) |
 
@@ -82,8 +86,8 @@ flutter run
 
 #### Build
 ```bash
-# Android APK
-flutter build apk --release
+# Android APK (GitHub / sideload flavor)
+flutter build apk --flavor github --release
 
 # Windows
 flutter build windows --release
@@ -112,8 +116,9 @@ flutter build web --release
 5. **Long press** — enter file selection mode
 6. **Date button** — select all files for the same dates
 7. **RAW button** — show/hide ORF files
-8. **Download button** — download selected files
-9. **Delete button** — delete selected files from the camera
+8. **Download button** — download selected files; on Android choose **On screen** or **Background**
+9. Successfully downloaded files remain marked in green after restarting the app
+10. **Delete button** — delete selected files from the camera
 
 ## Camera Protocol (OPC)
 
@@ -162,6 +167,8 @@ sponsored by OM Digital Solutions, Olympus Corporation, or OM System.
 
 - **Видаляти файли з камери** — OI.Share цього не підтримує
 - **Вибирати та завантажувати групи файлів** за датою одним натиском
+- **Завантажувати у фоні на Android** після згортання застосунку або вимкнення екрана
+- **Пам’ятати вже завантажені файли** та позначати їх зеленим між запусками
 - **Показувати/приховувати RAW (ORF)** файли, щоб прибрати дублі
 - **Працювати на Windows та у браузері**, а не лише на мобільних
 - **Повністю відкритий вихідний код** — можна модифікувати під свої потреби
@@ -191,6 +198,8 @@ sponsored by OM Digital Solutions, Olympus Corporation, or OM System.
 
 ### Завантаження
 - На Android: збереження у `DCIM/OlympusView` — фото одразу з'являються у галереї
+- На Android: опційне **фонове завантаження** продовжується після згортання застосунку або вимкнення екрана
+- На Android: успішно перенесені файли зберігають постійну зелену позначку **завантажено**
 - На Windows: збереження у папку документів
 - На Web: завантаження через браузер
 
@@ -215,7 +224,7 @@ sponsored by OM Digital Solutions, Olympus Corporation, or OM System.
 
 | Платформа | Файл |
 |-----------|------|
-| Android   | `releases/OlympusView.apk` |
+| Android   | `releases/OlympusView-Android.apk` |
 | Windows   | `releases/windows/olympus_flutter.exe` |
 | Web       | `releases/web/` (відкрити `index.html`) |
 
@@ -234,8 +243,8 @@ flutter run
 
 #### Збірка
 ```bash
-# Android APK
-flutter build apk --release
+# Android APK (GitHub / sideload flavor)
+flutter build apk --flavor github --release
 
 # Windows
 flutter build windows --release
@@ -253,8 +262,9 @@ flutter build web --release
 5. **Довге натискання** — режим вибору файлів
 6. **Кнопка дати** — виділити усі файли за ті самі дати
 7. **Кнопка RAW** — показати/приховати ORF файли
-8. **Кнопка завантаження** — завантажити вибрані файли
-9. **Кнопка видалення** — видалити вибрані файли з камери
+8. **Кнопка завантаження** — завантажити вибрані файли; на Android виберіть **На екрані** або **У фоні**
+9. Успішно завантажені файли залишаються позначеними зеленим після перезапуску
+10. **Кнопка видалення** — видалити вибрані файли з камери
 
 ## Ліцензія
 
@@ -274,6 +284,8 @@ flutter build web --release
 
 - **Удалять файлы с камеры** — OI.Share этого не поддерживает
 - **Выбирать и скачивать группы файлов** по дате одним нажатием
+- **Скачивать в фоне на Android** после сворачивания приложения или выключения экрана
+- **Помнить уже скачанные файлы** и отмечать их зелёным между запусками
 - **Показывать/скрывать RAW (ORF)** файлы, чтобы убрать дубли
 - **Работать на Windows и в браузере**, а не только на мобильных
 - **Полностью открытый исходный код** — можно модифицировать под свои нужды
@@ -303,6 +315,8 @@ flutter build web --release
 
 ### Скачивание
 - На Android: сохранение в `DCIM/OlympusView` — фото сразу появляются в галерее
+- На Android: опциональное **фоновое скачивание** продолжается после сворачивания приложения или выключения экрана
+- На Android: успешно перенесённые файлы сохраняют постоянную зелёную отметку **скачано**
 - На Windows: сохранение в папку документов
 - На Web: скачивание через браузер
 
@@ -327,7 +341,7 @@ flutter build web --release
 
 | Платформа | Файл |
 |-----------|------|
-| Android   | `releases/OlympusView.apk` |
+| Android   | `releases/OlympusView-Android.apk` |
 | Windows   | `releases/windows/olympus_flutter.exe` |
 | Web       | `releases/web/` (открыть `index.html`) |
 
@@ -346,8 +360,8 @@ flutter run
 
 #### Сборка
 ```bash
-# Android APK
-flutter build apk --release
+# Android APK (GitHub / sideload flavor)
+flutter build apk --flavor github --release
 
 # Windows
 flutter build windows --release
@@ -365,8 +379,9 @@ flutter build web --release
 5. **Долгое нажатие** — режим выбора файлов
 6. **Кнопка 📅** — выделить все файлы за те же даты
 7. **Кнопка RAW** — показать/скрыть ORF файлы
-8. **Кнопка ⬇️** — скачать выбранные файлы
-9. **Кнопка 🗑️** — удалить выбранные файлы с камеры
+8. **Кнопка ⬇️** — скачать выбранные файлы; на Android выберите **На экране** или **В фоне**
+9. Успешно скачанные файлы остаются отмеченными зелёным после перезапуска
+10. **Кнопка 🗑️** — удалить выбранные файлы с камеры
 
 ## Протокол камеры (OPC)
 
