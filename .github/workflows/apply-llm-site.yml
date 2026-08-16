@@ -17,7 +17,7 @@ jobs:
         with:
           ref: agent/llms-site-audit
           fetch-depth: 0
-      - name: Patch static site metadata
+      - name: Patch site accuracy
         run: python3 scripts/patch_llm_site.py
       - name: Commit patched index
         shell: bash
@@ -27,5 +27,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/index.html
           git diff --cached --quiet && { echo "No index changes produced"; exit 1; }
-          git commit -m "Improve LLM discovery and structured data"
+          git commit -m "Fix site downloads and compatibility claims"
           git push origin HEAD:agent/llms-site-audit
