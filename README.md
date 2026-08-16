@@ -63,13 +63,13 @@ Unlike the official **OI.Share** app, Olympus View can:
 
 ### Pre-built Releases
 
-Pre-built releases are in the `releases/` folder:
+Pre-built binaries are published with each GitHub Release:
 
 | Platform | File |
 |----------|------|
-| Android  | `releases/OlympusView-Android.apk` |
-| Windows  | `releases/windows/olympus_flutter.exe` |
-| Web      | `releases/web/` (open `index.html`) |
+| Android  | [OlympusView-Android.apk](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk) |
+| Windows  | [OlympusView-Windows.zip](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Windows.zip) |
+| Web      | [OlympusView-Web.zip](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Web.zip) |
 
 ### Build from Source
 
@@ -220,13 +220,13 @@ sponsored by OM Digital Solutions, Olympus Corporation, or OM System.
 
 ### Готові збірки
 
-Готові збірки знаходяться у папці `releases/`:
+Готові збірки публікуються в кожному GitHub Release:
 
 | Платформа | Файл |
 |-----------|------|
-| Android   | `releases/OlympusView-Android.apk` |
-| Windows   | `releases/windows/olympus_flutter.exe` |
-| Web       | `releases/web/` (відкрити `index.html`) |
+| Android   | [OlympusView-Android.apk](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk) |
+| Windows   | [OlympusView-Windows.zip](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Windows.zip) |
+| Web       | [OlympusView-Web.zip](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Web.zip) |
 
 ### Збірка з вихідних кодів
 
@@ -341,8 +341,8 @@ flutter build web --release
 
 | Платформа | Файл |
 |-----------|------|
-| Android   | `releases/OlympusView-Android.apk` |
-| Windows   | `releases/windows/olympus_flutter.exe` |
+| Android   | [OlympusView-Android.apk](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk) |
+| Windows   | [OlympusView-Windows.zip](https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Windows.zip) |
 | Web       | `releases/web/` (открыть `index.html`) |
 
 ### Сборка из исходников
