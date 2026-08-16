@@ -8,9 +8,6 @@ set "RELEASES=%PROJECT%\releases"
 set "BUILT_APK=%PROJECT%\build\app\outputs\flutter-apk\app-github-release.apk"
 set "RELEASE_APK=%RELEASES%\OlympusView-Android.apk"
 set "KEY_PROPERTIES=%PROJECT%\android\key.properties"
-set "DEFAULT_KEYSTORE=%USERPROFILE%\.android\debug.keystore"
-set "EXPECTED_CERT_SHA256=3786A41C932C63183FC36DD388CB6BE397775392D3BF6E7F4FB16DC28CAE841E"
-set "TEMP_KEY_PROPERTIES=0"
 
 cd /d "%PROJECT%" || goto :failed
 
@@ -35,11 +32,13 @@ if not defined GIT_BRANCH (
   echo ERROR: Could not determine the current Git branch.
   goto :failed
 )
-set "TEST_UPDATE_BUILD=0"
-if /I "!GIT_BRANCH!"=="agent/update-progress-test" set "TEST_UPDATE_BUILD=1"
-if /I not "!GIT_BRANCH!"=="master" if "!TEST_UPDATE_BUILD!"=="0" (
-  echo ERROR: build_release.cmd only builds master or agent/update-progress-test.
+if /I not "!GIT_BRANCH!"=="master" (
+  echo ERROR: build_release.cmd only creates publishable APKs from master.
   echo Current branch: !GIT_BRANCH!
+  echo.
+  echo Switch to the current release source first:
+  echo   git switch master
+  echo   git pull --ff-only
   goto :failed
 )
 
@@ -69,12 +68,6 @@ for /f "tokens=1,2 delims=+" %%A in ("!PUBSPEC_VERSION!") do (
 if not defined BUILD_NAME goto :bad_version
 if not defined BUILD_NUMBER goto :bad_version
 
-if "!TEST_UPDATE_BUILD!"=="1" (
-  echo [test] Updater E2E branch: overriding APK manifest version to 1.3.4+13.
-  set "BUILD_NAME=1.3.4"
-  set "BUILD_NUMBER=13"
-)
-
 goto :version_ok
 
 :bad_version
@@ -91,63 +84,34 @@ echo ========================================
 echo Source branch : !GIT_BRANCH!
 echo Source commit : !GIT_COMMIT!
 echo App version   : !BUILD_NAME! (build !BUILD_NUMBER!)
-if "!TEST_UPDATE_BUILD!"=="1" echo TEST MODE     : public latest remains v1.3.5; this APK intentionally reports v1.3.4+13
 echo Build time UTC: !BUILD_TIME_UTC!
 echo Flutter       : !BUILD_FLUTTER_VERSION!
 echo.
 
-rem Local GitHub APK updates must use the same certificate as the APKs that
-rem are already installed by users. Prefer an explicit android\key.properties.
-rem If it is absent, use the known legacy key only after verifying its SHA-256.
-if exist "%KEY_PROPERTIES%" (
-  echo [signing] Using existing android\key.properties
-) else (
-  if not exist "%DEFAULT_KEYSTORE%" (
-    echo ERROR: Release signing key was not found.
-    echo Expected either:
-    echo   %KEY_PROPERTIES%
-    echo or the compatible existing key:
-    echo   %DEFAULT_KEYSTORE%
-    goto :failed
-  )
-
-  where keytool >nul 2>nul
-  if errorlevel 1 (
-    echo ERROR: keytool is not available in PATH.
-    echo Run flutter doctor -v and use the JDK bundled with Android Studio/Flutter.
-    goto :failed
-  )
-
-  set "CERT_LINE="
-  for /f "delims=" %%A in ('keytool -list -v -keystore "%DEFAULT_KEYSTORE%" -alias androiddebugkey -storepass android -keypass android 2^>nul ^| findstr /C:"SHA256:"') do (
-    set "CERT_LINE=%%A"
-  )
-  set "ACTUAL_CERT_SHA256=!CERT_LINE:*SHA256: =!"
-  set "ACTUAL_CERT_SHA256=!ACTUAL_CERT_SHA256::=!"
-  set "ACTUAL_CERT_SHA256=!ACTUAL_CERT_SHA256: =!"
-
-  if /I not "!ACTUAL_CERT_SHA256!"=="%EXPECTED_CERT_SHA256%" (
-    echo ERROR: The certificate in %DEFAULT_KEYSTORE% does not match the published app.
-    echo Expected: %EXPECTED_CERT_SHA256%
-    echo Actual:   !ACTUAL_CERT_SHA256!
-    echo Refusing to build an incompatible update.
-    goto :failed
-  )
-
-  echo [signing] Compatible signing certificate verified.
-  set "KEYSTORE_FORWARD=%DEFAULT_KEYSTORE:\=/%"
-  > "%KEY_PROPERTIES%" echo storePassword=android
-  >>"%KEY_PROPERTIES%" echo keyPassword=android
-  >>"%KEY_PROPERTIES%" echo keyAlias=androiddebugkey
-  >>"%KEY_PROPERTIES%" echo storeFile=!KEYSTORE_FORWARD!
-  set "TEMP_KEY_PROPERTIES=1"
+rem v1.3.6+ uses the long-lived production app-signing key. Never fall back to
+rem the Android debug keystore: doing so would create an incompatible update.
+if not exist "%KEY_PROPERTIES%" (
+  echo ERROR: Production signing configuration is missing:
+  echo   %KEY_PROPERTIES%
+  echo.
+  echo Generate the production app-signing key and Play upload key once with:
+  echo   powershell -ExecutionPolicy Bypass -File scripts\generate_android_signing_keys.ps1
+  echo.
+  echo Do NOT use %%USERPROFILE%%\.android\debug.keystore for release builds.
+  goto :failed
 )
+
+findstr /I /C:"debug.keystore" "%KEY_PROPERTIES%" >nul
+if not errorlevel 1 (
+  echo ERROR: android\key.properties points to a debug keystore.
+  echo Production releases from v1.3.6 onward must use olympus-app-signing.jks.
+  goto :failed
+)
+
+echo [signing] Using explicit production android\key.properties
 
 echo.
 echo [1/7] Stopping Gradle and clearing Flutter AOT cache...
-rem Stop Gradle before asking Flutter to clean. On Windows, D8/R8/Gradle can
-rem temporarily keep classes.dex open; that unrelated lock must not block a
-rem release as long as the Dart AOT inputs/outputs are removed and verified.
 call "%PROJECT%\android\gradlew.bat" --stop >nul 2>nul
 
 call "%FLUTTER%" clean
@@ -156,9 +120,6 @@ if errorlevel 1 (
   echo          Continuing with strict targeted Flutter AOT cleanup.
 )
 
-rem These paths can contain stale Dart snapshots/libapp.so and therefore MUST
-rem be removed. Old dex/resources elsewhere under build\ are safe to leave;
-rem Gradle owns them and will rebuild what it needs.
 if exist "%PROJECT%\.dart_tool\flutter_build" rmdir /S /Q "%PROJECT%\.dart_tool\flutter_build"
 if exist "%PROJECT%\build\app\intermediates\flutter\githubRelease" rmdir /S /Q "%PROJECT%\build\app\intermediates\flutter\githubRelease"
 if exist "%PROJECT%\build\app\intermediates\merged_native_libs\githubRelease" rmdir /S /Q "%PROJECT%\build\app\intermediates\merged_native_libs\githubRelease"
@@ -278,19 +239,14 @@ echo.
 echo NOTE: Google Play AAB is intentionally not built by this script.
 echo       It must use the separate Play upload key via the "Google Play AAB" workflow.
 set "EXIT_CODE=0"
-goto :cleanup
+goto :done
 
 :failed
 echo.
 echo FAILED: Release build did not complete.
 set "EXIT_CODE=1"
 
-:cleanup
-if "%TEMP_KEY_PROPERTIES%"=="1" (
-  del /Q "%KEY_PROPERTIES%" >nul 2>nul
-  echo [signing] Temporary android\key.properties removed.
-)
-
+:done
 echo.
 pause
 exit /b %EXIT_CODE%
