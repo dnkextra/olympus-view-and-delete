@@ -1,0 +1,181 @@
+# Olympus View — WiFi File Manager for Olympus & OM System Cameras
+
+> Manage, download, and delete photos on Olympus and OM System cameras over the camera's local WiFi network. Olympus View is an unofficial cross-platform alternative to OI.Share for Android, Windows, and Web.
+
+**Current Android release:** v1.3.6+15 — August 16, 2026  
+**Source:** https://github.com/dpolarov/olympus-view-and-delete  
+**Latest release:** https://github.com/dpolarov/olympus-view-and-delete/releases/latest  
+**Android APK:** https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk
+
+Olympus View is not affiliated with, endorsed by, or sponsored by OM Digital Solutions, Olympus Corporation, or OM System.
+
+## Why Olympus View instead of OI.Share?
+
+Olympus View focuses on camera file management:
+
+- Delete files directly from a compatible camera over WiFi.
+- Select and download groups of files instead of transferring them one by one.
+- Keep Android downloads running in the background while the app is minimized or the screen is off.
+- Remember successfully downloaded files with persistent green markers.
+- Select all currently visible files carrying the downloaded marker, making it easy to remove already-copied photos from the camera in one batch.
+- Filter RAW/ORF files when shooting RAW+JPG.
+- Run on Android, Windows, and in a browser.
+- Inspect and build the source code yourself.
+
+## Supported cameras
+
+The project currently lists these WiFi-capable Olympus / OM System models:
+
+- OM System OM-1
+- OM System OM-1 Mark II
+- OM System OM-5
+- Olympus E-M1 Mark II
+- Olympus E-M1 Mark III
+- Olympus E-M5 Mark III
+- Olympus E-M10 Mark III
+- Olympus E-M10 Mark IV
+- Olympus TG-6
+- Olympus TG-7
+- Olympus E-PL10
+- Olympus PEN E-P7
+
+The implementation communicates with cameras using the Olympus OPC communication interface over local WiFi. Compatibility depends on the camera exposing the expected OPC endpoints and QR/connection format.
+
+## Features
+
+### QR-code connection
+
+On Android, scan the QR code displayed by the camera. Olympus View decodes Olympus/OM System OIS1 and OIS3 QR formats and extracts the camera WiFi connection information.
+
+### Browse photos
+
+Load the camera's photo list with thumbnails and browse in grid or list form. The app traverses camera folders and supports date filtering.
+
+### Delete files from the camera
+
+Long-press a photo to enter selection mode, select one or more files, and delete them directly from the camera memory card over WiFi.
+
+### Select by date
+
+Select a file and use date-based selection to select files from the same date in one operation.
+
+### RAW / ORF filter
+
+Hide RAW files such as ORF/DNG to avoid duplicate-looking entries when the camera records RAW+JPG.
+
+### Download files
+
+Download selected photos with progress information. On Android, downloaded photos are saved to user-accessible media storage and appear in the gallery.
+
+### Background download on Android
+
+Android transfers can continue while Olympus View is minimized or the screen is off. System notifications report progress and completion.
+
+### Persistent downloaded markers
+
+Successfully transferred files receive a green downloaded marker that survives normal app restarts and updates. In selection mode, **Select downloaded** selects all currently visible green-marked files so they can be deleted from the camera after they have been safely copied.
+
+### In-app GitHub update flow
+
+The direct GitHub APK build can check for newer GitHub releases. Download progress, waiting-for-network state, retry/cancel controls, and an Install action remain visible in the app. Camera auto-connect is paused while an application update needs internet so camera WiFi cannot silently stall the APK download.
+
+The Google Play flavor disables external APK self-install/update behavior.
+
+## How to use
+
+1. Enable WiFi on the Olympus / OM System camera.
+2. Android: open Olympus View and scan the QR code displayed by the camera.
+3. Windows/Web: connect the computer to the camera's WiFi network and open Olympus View.
+4. Wait for the file list and thumbnails to load.
+5. Long-press a photo to enter file-selection mode.
+6. Use selection tools for date-based selection or downloaded-file selection.
+7. Download selected files, or delete selected files from the camera.
+8. Use the RAW toggle to show or hide RAW/ORF entries.
+
+## Downloads
+
+### Android
+
+Latest direct-install APK:
+
+https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk
+
+### Windows
+
+A portable Windows build is stored in the repository releases directory:
+
+https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases
+
+### Web
+
+A web build is also stored in the repository releases directory. The computer must still be connected to the camera's WiFi network for camera access.
+
+https://github.com/dpolarov/olympus-view-and-delete/tree/master/releases
+
+## Important signing migration in v1.3.6
+
+Releases through v1.3.5 used a temporary legacy Android debug signing certificate. v1.3.6 introduced the permanent production signing identity.
+
+Android does not allow an APK signed by an unrelated certificate to replace an installed application with the same package name. Therefore, users with direct APK versions **v1.3.5 or older must uninstall Olympus View and install v1.3.6 once**.
+
+That uninstall clears Olympus View's local settings and downloaded-marker history. It does **not** delete photos already saved on the phone and does not delete files on the camera.
+
+After v1.3.6 has been installed, future direct APK releases use the same permanent production signing identity and can update normally.
+
+## Technical details
+
+### Application
+
+- Flutter / Dart
+- Material 3 UI
+- Android package: `com.flynew.photomanager`
+- Android direct APK and Google Play flavors are built separately.
+
+### Camera protocol
+
+Olympus View communicates directly with the camera over HTTP on the local camera WiFi network. Compatible cameras normally expose the interface at `192.168.0.10`.
+
+Common OPC endpoints used by the project include:
+
+- File list: `GET /get_imglist.cgi?DIR=/DCIM`
+- Thumbnail: `GET /get_thumbnail.cgi?DIR=<path>`
+- Delete: `GET /exec_erase.cgi?DIR=<path>`
+- Download: `GET /<path>`
+- Play mode: `GET /switch_cammode.cgi?mode=play`
+- Camera info: `GET /get_caminfo.cgi`
+
+### QR decoding
+
+The app supports OIS1 and OIS3 camera QR formats. These contain encoded WiFi connection data and, on some cameras, Bluetooth information. Olympus View decodes the values locally on the device.
+
+## Privacy summary
+
+Olympus View has no user accounts, advertising, developer analytics backend, or developer-operated cloud photo storage. Camera photos and saved camera WiFi credentials are handled locally by the application. Android QR recognition uses Google ML Kit through Mobile Scanner; Google may receive technical diagnostics and usage metrics as described in the full policy.
+
+Full privacy policy:
+
+https://dpolarov.github.io/olympus-view-and-delete/privacy.md
+
+## v1.3.6 highlights
+
+- Visible APK update progress and network-waiting status.
+- Retry, cancel, and in-app Install controls for GitHub updates.
+- Camera auto-connect is suppressed while an app update needs internet.
+- **Select downloaded** selects all visible files with persistent green downloaded markers.
+- Permanent production Android signing identity introduced.
+- Separate Google Play upload key introduced.
+- Version: **1.3.6+15**.
+
+Detailed changelog:
+
+https://raw.githubusercontent.com/dpolarov/olympus-view-and-delete/master/CHANGELOG.md
+
+## Source and feedback
+
+Source repository and issue tracker:
+
+https://github.com/dpolarov/olympus-view-and-delete
+
+Human-readable project website:
+
+https://dpolarov.github.io/olympus-view-and-delete/
