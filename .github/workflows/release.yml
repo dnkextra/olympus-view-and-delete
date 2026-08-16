@@ -7,16 +7,16 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag, for example v1.3.4"
+        description: "Release tag, for example v1.3.6"
         required: true
-        default: "v1.3.4"
+        default: "v1.3.6"
 
 permissions:
   contents: write
 
 env:
   FLUTTER_VERSION: "3.44.7"
-  EXPECTED_ANDROID_CERT_SHA256: "3786a41c932c63183fc36dd388cb6be397775392d3bf6e7f4fb16dc28cae841e"
+  LEGACY_DEBUG_CERT_SHA256: "3786a41c932c63183fc36dd388cb6be397775392d3bf6e7f4fb16dc28cae841e"
 
 jobs:
   quality:
@@ -66,27 +66,30 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Validate signing secrets
+      - name: Validate production signing secrets
         shell: bash
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
         run: |
           set -euo pipefail
           [[ -n "$KEYSTORE_B64" ]] || { echo "Missing ANDROID_KEYSTORE_BASE64"; exit 1; }
           [[ -n "$STORE_PASSWORD" ]] || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
           [[ -n "$KEY_ALIAS" ]] || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
           [[ -n "$KEY_PASSWORD" ]] || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
+          [[ -n "$EXPECTED_CERT_SHA256" ]] || { echo "Missing ANDROID_SIGNING_CERT_SHA256"; exit 1; }
 
-      - name: Restore and verify Android signing key
+      - name: Restore and verify production Android signing key
         shell: bash
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPECTED_CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
         run: |
           set -euo pipefail
           printf '%s' "$KEYSTORE_B64" | base64 --decode > android/app/olympus-release.jks
@@ -101,11 +104,16 @@ jobs:
             | tr -d ':' \
             | tr '[:upper:]' '[:lower:]'
           )"
+          expected_cert_sha256="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ': ' | tr '[:upper:]' '[:lower:]')"
 
           echo "Signing certificate SHA-256: $actual_cert_sha256"
-          if [[ "$actual_cert_sha256" != "$EXPECTED_ANDROID_CERT_SHA256" ]]; then
-            echo "ERROR: wrong Android signing certificate."
-            echo "Expected: $EXPECTED_ANDROID_CERT_SHA256"
+          if [[ "$actual_cert_sha256" == "$LEGACY_DEBUG_CERT_SHA256" ]]; then
+            echo "ERROR: legacy Android debug certificate is forbidden for v1.3.6+ releases."
+            exit 1
+          fi
+          if [[ "$actual_cert_sha256" != "$expected_cert_sha256" ]]; then
+            echo "ERROR: wrong production Android signing certificate."
+            echo "Expected: $expected_cert_sha256"
             echo "Actual:   $actual_cert_sha256"
             exit 1
           fi
@@ -187,7 +195,7 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             tag="$GITHUB_REF_NAME"
           else
-            tag="${INPUT_TAG:-v1.3.4}"
+            tag="${INPUT_TAG:-v1.3.6}"
           fi
           echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
 
