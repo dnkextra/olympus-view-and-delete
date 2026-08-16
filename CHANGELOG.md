@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.5] - 2026-08-16
+
+### Added
+- **Updater end-to-end test release**: a normal public GitHub release so installed `1.3.4+13` GitHub builds can exercise the complete in-app update path against a real newer version.
+- **Updater regression tests** cover numeric version comparison, `1.3.2 -> 1.3.4`, same-version rejection, exact `OlympusView-Android.apk` asset selection, missing-APK rejection and release-note normalization.
+
+### Changed
+- Version bumped to **1.3.5+14**. Application behavior is otherwise the same as 1.3.4; this release exists primarily to verify download and installation through the built-in GitHub updater.
+
 ## [1.3.4] - 2026-08-16
 
 ### Added
