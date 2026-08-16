@@ -25,16 +25,16 @@ class UpdateDownloadReceiver : BroadcastReceiver() {
         val query = DownloadManager.Query().setFilterById(completedId)
         manager.query(query)?.use { cursor ->
             if (!cursor.moveToFirst()) return
-            val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+            val downloadStatus = cursor.getInt(
+                cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS),
+            )
             val version = prefs.getString(KEY_VERSION, "") ?: ""
-            if (status == DownloadManager.STATUS_SUCCESSFUL) {
+            if (downloadStatus == DownloadManager.STATUS_SUCCESSFUL) {
                 showInstallNotification(context, manager, completedId, version)
-            } else {
+            } else if (downloadStatus == DownloadManager.STATUS_FAILED) {
                 showFailureNotification(context, version)
             }
         }
-
-        prefs.edit().remove(KEY_DOWNLOAD_ID).remove(KEY_VERSION).apply()
     }
 
     private fun showInstallNotification(
@@ -121,6 +121,7 @@ class UpdateDownloadReceiver : BroadcastReceiver() {
         private const val NOTIFICATION_ID = 4202
 
         fun enqueue(context: Context, url: String, version: String): Long {
+            cancel(context)
             val request = DownloadManager.Request(Uri.parse(url))
                 .setTitle("Olympus View $version")
                 .setDescription("Downloading application update")
@@ -142,6 +143,120 @@ class UpdateDownloadReceiver : BroadcastReceiver() {
                 .putString(KEY_VERSION, version)
                 .apply()
             return id
+        }
+
+        fun status(context: Context): Map<String, Any?> {
+            val manager = context.getSystemService(DownloadManager::class.java)
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val id = prefs.getLong(KEY_DOWNLOAD_ID, -1L)
+            val version = prefs.getString(KEY_VERSION, "") ?: ""
+            if (id <= 0L) return idleStatus(version)
+
+            if (version.isNotBlank() && currentVersionAtLeast(context, version)) {
+                cancel(context)
+                return idleStatus("")
+            }
+
+            val query = DownloadManager.Query().setFilterById(id)
+            manager.query(query)?.use { cursor ->
+                if (!cursor.moveToFirst()) {
+                    prefs.edit().remove(KEY_DOWNLOAD_ID).remove(KEY_VERSION).apply()
+                    return idleStatus("")
+                }
+                val rawStatus = cursor.getInt(
+                    cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS),
+                )
+                val downloaded = cursor.getLong(
+                    cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR),
+                )
+                val total = cursor.getLong(
+                    cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES),
+                )
+                val reason = cursor.getInt(
+                    cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON),
+                )
+                return mapOf(
+                    "state" to stateName(rawStatus),
+                    "version" to version,
+                    "downloadedBytes" to downloaded.coerceAtLeast(0L),
+                    "totalBytes" to total.coerceAtLeast(0L),
+                    "reason" to reasonName(rawStatus, reason),
+                )
+            }
+            return idleStatus(version)
+        }
+
+        fun install(context: Context): Boolean {
+            val manager = context.getSystemService(DownloadManager::class.java)
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val id = prefs.getLong(KEY_DOWNLOAD_ID, -1L)
+            if (id <= 0L) return false
+            val apkUri = manager.getUriForDownloadedFile(id) ?: return false
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, APK_MIME)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            return true
+        }
+
+        fun cancel(context: Context) {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val id = prefs.getLong(KEY_DOWNLOAD_ID, -1L)
+            if (id > 0L) {
+                context.getSystemService(DownloadManager::class.java).remove(id)
+            }
+            prefs.edit().remove(KEY_DOWNLOAD_ID).remove(KEY_VERSION).apply()
+        }
+
+        private fun idleStatus(version: String) = mapOf<String, Any?>(
+            "state" to "none",
+            "version" to version,
+            "downloadedBytes" to 0L,
+            "totalBytes" to 0L,
+            "reason" to "",
+        )
+
+        private fun stateName(status: Int): String = when (status) {
+            DownloadManager.STATUS_PENDING -> "pending"
+            DownloadManager.STATUS_RUNNING -> "running"
+            DownloadManager.STATUS_PAUSED -> "paused"
+            DownloadManager.STATUS_SUCCESSFUL -> "successful"
+            DownloadManager.STATUS_FAILED -> "failed"
+            else -> "none"
+        }
+
+        private fun reasonName(status: Int, reason: Int): String {
+            if (status == DownloadManager.STATUS_PAUSED) {
+                return when (reason) {
+                    DownloadManager.PAUSED_WAITING_FOR_NETWORK -> "waiting_for_network"
+                    DownloadManager.PAUSED_WAITING_TO_RETRY -> "waiting_to_retry"
+                    DownloadManager.PAUSED_QUEUED_FOR_WIFI -> "queued_for_wifi"
+                    else -> "paused"
+                }
+            }
+            return if (status == DownloadManager.STATUS_FAILED) "error_$reason" else ""
+        }
+
+        private fun currentVersionAtLeast(context: Context, target: String): Boolean {
+            @Suppress("DEPRECATION")
+            val current = context.packageManager.getPackageInfo(context.packageName, 0)
+                .versionName ?: "0.0.0"
+            val a = versionParts(current)
+            val b = versionParts(target)
+            for (i in 0..2) {
+                if (a[i] != b[i]) return a[i] > b[i]
+            }
+            return true
+        }
+
+        private fun versionParts(value: String): List<Int> {
+            val matches = Regex("\\d+").findAll(value).take(3).map {
+                it.value.toIntOrNull() ?: 0
+            }.toMutableList()
+            while (matches.size < 3) matches += 0
+            return matches
         }
     }
 }

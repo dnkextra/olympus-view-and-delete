@@ -35,14 +35,11 @@ if not defined GIT_BRANCH (
   echo ERROR: Could not determine the current Git branch.
   goto :failed
 )
-if /I not "!GIT_BRANCH!"=="master" (
-  echo ERROR: build_release.cmd only builds the repository master branch.
+set "TEST_UPDATE_BUILD=0"
+if /I "!GIT_BRANCH!"=="agent/update-progress-test" set "TEST_UPDATE_BUILD=1"
+if /I not "!GIT_BRANCH!"=="master" if "!TEST_UPDATE_BUILD!"=="0" (
+  echo ERROR: build_release.cmd only builds master or agent/update-progress-test.
   echo Current branch: !GIT_BRANCH!
-  echo.
-  echo Run:
-  echo   git switch master
-  echo   git pull --ff-only
-  echo   build_release.cmd
   goto :failed
 )
 
@@ -72,6 +69,12 @@ for /f "tokens=1,2 delims=+" %%A in ("!PUBSPEC_VERSION!") do (
 if not defined BUILD_NAME goto :bad_version
 if not defined BUILD_NUMBER goto :bad_version
 
+if "!TEST_UPDATE_BUILD!"=="1" (
+  echo [test] Updater E2E branch: overriding APK manifest version to 1.3.4+13.
+  set "BUILD_NAME=1.3.4"
+  set "BUILD_NUMBER=13"
+)
+
 goto :version_ok
 
 :bad_version
@@ -88,6 +91,7 @@ echo ========================================
 echo Source branch : !GIT_BRANCH!
 echo Source commit : !GIT_COMMIT!
 echo App version   : !BUILD_NAME! (build !BUILD_NUMBER!)
+if "!TEST_UPDATE_BUILD!"=="1" echo TEST MODE     : public latest remains v1.3.5; this APK intentionally reports v1.3.4+13
 echo Build time UTC: !BUILD_TIME_UTC!
 echo Flutter       : !BUILD_FLUTTER_VERSION!
 echo.
@@ -237,14 +241,14 @@ if defined AAPT (
   )
   findstr /C:"versionCode='!BUILD_NUMBER!'" "!BADGING_FILE!" >nul
   if errorlevel 1 (
-    echo ERROR: APK versionCode does not match pubspec build !BUILD_NUMBER!.
+    echo ERROR: APK versionCode does not match requested build !BUILD_NUMBER!.
     type "!BADGING_FILE!" | findstr /B /C:"package:"
     del /Q "!BADGING_FILE!" >nul 2>nul
     goto :failed
   )
   findstr /C:"versionName='!BUILD_NAME!'" "!BADGING_FILE!" >nul
   if errorlevel 1 (
-    echo ERROR: APK versionName does not match pubspec version !BUILD_NAME!.
+    echo ERROR: APK versionName does not match requested version !BUILD_NAME!.
     type "!BADGING_FILE!" | findstr /B /C:"package:"
     del /Q "!BADGING_FILE!" >nul 2>nul
     goto :failed

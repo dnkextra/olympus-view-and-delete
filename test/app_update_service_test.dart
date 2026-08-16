@@ -2,6 +2,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:olympus_tg6_manager/services/app_update_service.dart';
 
 void main() {
+  group('AppUpdateDownloadStatus', () {
+    test('parses progress from the Android channel map', () {
+      final status = AppUpdateDownloadStatus.fromMap(<String, dynamic>{
+        'state': 'running',
+        'version': '1.3.5',
+        'downloadedBytes': 25,
+        'totalBytes': 100,
+        'reason': '',
+      });
+
+      expect(status.isActive, isTrue);
+      expect(status.isReady, isFalse);
+      expect(status.progress, 0.25);
+    });
+
+    test('recognizes waiting-for-network pause', () {
+      final status = AppUpdateDownloadStatus.fromMap(<String, dynamic>{
+        'state': 'paused',
+        'version': '1.3.5',
+        'downloadedBytes': 10,
+        'totalBytes': 100,
+        'reason': 'waiting_for_network',
+      });
+
+      expect(status.isActive, isTrue);
+      expect(status.reason, 'waiting_for_network');
+    });
+  });
+
   group('AppUpdateService.isNewerVersion', () {
     test('detects a newer patch release', () {
       expect(AppUpdateService.isNewerVersion('1.3.4', '1.3.2'), isTrue);

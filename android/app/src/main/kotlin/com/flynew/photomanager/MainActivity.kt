@@ -162,6 +162,16 @@ class MainActivity : FlutterActivity() {
                         openInstallSettings()
                         result.success(null)
                     }
+                    "getUpdateDownloadStatus" -> {
+                        result.success(UpdateDownloadReceiver.status(this))
+                    }
+                    "installDownloadedUpdate" -> {
+                        result.success(UpdateDownloadReceiver.install(this))
+                    }
+                    "cancelUpdateDownload" -> {
+                        UpdateDownloadReceiver.cancel(this)
+                        result.success(null)
+                    }
                     "startUpdateDownload" -> {
                         if (!BuildConfig.ALLOW_EXTERNAL_UPDATE) {
                             result.error(
