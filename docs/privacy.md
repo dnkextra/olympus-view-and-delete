@@ -1,6 +1,6 @@
 # Olympus View Privacy Policy
 
-> Effective date: August 15, 2026. Olympus View is an unofficial camera utility. It has no user accounts, advertising, developer analytics backend, or developer-operated cloud photo storage. Camera photos and camera WiFi credentials are handled locally on the user's device. The Android QR scanner uses Google ML Kit, which may send Google technical diagnostics and usage metrics as described below.
+> Effective date: August 17, 2026. Olympus View is an unofficial camera utility. It has no user accounts, advertising, developer-operated analytics backend, or developer-operated cloud photo storage. Camera photos and camera WiFi credentials are handled locally on the user's device. The Android QR scanner uses Google ML Kit, which may send Google technical diagnostics and usage metrics as described below. The project website and hosted Web app use third-party web analytics as described in the website section below; this analytics is not included in the Android or Windows applications.
 
 ## Developer and scope
 
@@ -48,9 +48,13 @@ The Android app permits cleartext HTTP only for that local camera address; unrel
 
 Olympus View contains no advertising SDK and does not require or provide a user account.
 
-## Project website and feedback form
+## Project website, Web analytics, and feedback form
 
-The Olympus View project website has a separate feedback data flow. If a visitor voluntarily submits the website feedback form, the supplied name, email address, and message are transmitted to Formspree so that the maintainer can receive and respond to the message.
+The project website at `dpolarov.github.io/olympus-view-and-delete` and its hosted Web app use Cloudflare Web Analytics for aggregate traffic and page-performance measurement. According to Cloudflare's Web Analytics documentation, this service does not collect or use visitors' personal data and does not track individual end users across Cloudflare customers' Internet properties. The Cloudflare analytics beacon is part of the website deployment only and is not included in the Android or Windows applications.
+
+The project website currently also contains Google Analytics for website traffic measurement. Google Analytics is limited to the website and is not included in the Android or Windows applications.
+
+If a visitor voluntarily submits the website feedback form, the supplied name, email address, and message are transmitted to Formspree so that the maintainer can receive and respond to the message.
 
 The website feedback form is not embedded in the Android app and is not required to use Olympus View.
 
