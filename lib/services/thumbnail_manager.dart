@@ -12,7 +12,14 @@ import 'service_config.dart';
 /// Manages thumbnail loading with concurrency limit and priority for visible items.
 class ThumbnailManager {
   static final ThumbnailManager instance = ThumbnailManager._();
-  ThumbnailManager._();
+  ThumbnailManager._({http.Client? client})
+      : _client = client ?? http.Client();
+
+  /// Isolated manager with an injected [client] for tests only.
+  /// Production code must use [instance].
+  @visibleForTesting
+  factory ThumbnailManager.forTesting({http.Client? client}) =>
+      ThumbnailManager._(client: client);
 
   static const int _maxConcurrent = kMaxConcurrentThumbs;
   static const int _maxAttempts = 3;
@@ -33,7 +40,7 @@ class ThumbnailManager {
   // Running total of bytes held in [_cache], kept in sync on insert/evict.
   int _cacheBytes = 0;
   final Map<String, Completer<Uint8List?>> _inflight = {};
-  final http.Client _client = http.Client();
+  final http.Client _client;
 
   int _visibleStart = 0;
   int _visibleEnd = 20;
@@ -79,6 +86,8 @@ class ThumbnailManager {
       completer: completer,
       imagePath: imagePath,
       generation: _generation,
+      // No imagePath means there is no disk lookup to wait for.
+      diskChecked: imagePath.isEmpty,
     );
     _queue.add(request);
 
@@ -121,8 +130,20 @@ class ThumbnailManager {
       _putInMemCache(url, bytes);
 
   Future<void> _tryDiskCache(_Request request) async {
-    final cached =
-        await ImageDiskCache.instance.get(request.imagePath, 'thumb');
+    Uint8List? cached;
+    try {
+      cached = await ImageDiskCache.instance.get(request.imagePath, 'thumb');
+    } catch (e) {
+      AppLogger.debug(
+        'thumb disk cache read failed: $e',
+        name: 'thumbnail_manager',
+      );
+    } finally {
+      // Always release the request into the queue, even on error — a failed
+      // lookup must fall back to HTTP instead of stalling the completer.
+      request.diskChecked = true;
+    }
+
     if (request.generation != _generation) return;
 
     if (cached != null && isCompleteCameraJpeg(cached)) {
@@ -162,7 +183,12 @@ class ThumbnailManager {
       // Sort: items closer to visible range first.
       _queue.sort(
           (a, b) => _distToVisible(a.index).compareTo(_distToVisible(b.index)));
-      final req = _queue.removeAt(0);
+      // Never start the HTTP fetch of a request whose disk-cache lookup has
+      // not resolved yet: the disk read is cheap and, on a hit, makes the
+      // fetch unnecessary — and a wasted slot starves the camera connection.
+      final nextReady = _queue.indexWhere((req) => req.diskChecked);
+      if (nextReady < 0) break;
+      final req = _queue.removeAt(nextReady);
       _active++;
       unawaited(_fetch(req));
     }
@@ -276,11 +302,18 @@ class _Request {
   final int generation;
   final Completer<Uint8List?> completer;
 
+  /// True once this request's disk-cache lookup has resolved. The queue must
+  /// not start the HTTP fetch of an unchecked request: doing so races the
+  /// (cheap) disk read and can waste a scarce camera connection on data we
+  /// already have on disk.
+  bool diskChecked;
+
   _Request({
     required this.url,
     required this.index,
     required this.completer,
     required this.generation,
     this.imagePath = '',
+    this.diskChecked = true,
   });
 }

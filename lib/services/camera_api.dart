@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'app_logger.dart';
 import 'file_saver.dart' as file_saver;
@@ -8,6 +9,16 @@ export 'filename_sanitizer.dart' show sanitizeFilename;
 
 const String cameraIp = '192.168.0.10';
 const String baseUrl = 'http://$cameraIp';
+
+/// Test-only endpoint override: integration tests on an emulator point the
+/// app at an in-process fake camera. When set, every URL built by
+/// [CameraFile] and [CameraApi] uses it instead of [baseUrl]. The Host
+/// headers keep [cameraIp], mirroring the real camera. Never set this
+/// outside integration tests.
+@visibleForTesting
+String? debugCameraBaseUrlOverride;
+
+String get _cameraBase => debugCameraBaseUrlOverride ?? baseUrl;
 const Duration timeout = kCameraRequestTimeout;
 const Duration downloadTimeout = kCameraDownloadTimeout;
 
@@ -38,11 +49,11 @@ class CameraFile {
   });
 
   String get fullPath => '$directory/$filename';
-  String get thumbnailUrl => '$baseUrl/get_thumbnail.cgi?DIR=$fullPath';
-  String get screennailUrl => '$baseUrl/get_screennail.cgi?DIR=$fullPath';
+  String get thumbnailUrl => '$_cameraBase/get_thumbnail.cgi?DIR=$fullPath';
+  String get screennailUrl => '$_cameraBase/get_screennail.cgi?DIR=$fullPath';
   String resizeImgUrl([int size = kPreviewImageSize]) =>
-      '$baseUrl/get_resizeimg.cgi?DIR=$fullPath&size=$size';
-  String get downloadUrl => '$baseUrl$fullPath';
+      '$_cameraBase/get_resizeimg.cgi?DIR=$fullPath&size=$size';
+  String get downloadUrl => '$_cameraBase$fullPath';
   String get downloadHistoryKey =>
       '$fullPath|$size|$dateRaw|$timeRaw';
 
@@ -115,7 +126,7 @@ class CameraApi {
   Future<bool> testConnection({Duration timeout = kCameraProbeTimeout}) async {
     try {
       await _client
-          .get(Uri.parse('$baseUrl/get_caminfo.cgi'), headers: _headers)
+          .get(Uri.parse('$_cameraBase/get_caminfo.cgi'), headers: _headers)
           .timeout(timeout);
       return true;
     } catch (e) {
@@ -127,7 +138,7 @@ class CameraApi {
   /// Get camera model info
   Future<Map<String, String>> getCameraInfo() async {
     final resp = await _client
-        .get(Uri.parse('$baseUrl/get_caminfo.cgi'), headers: _headers)
+        .get(Uri.parse('$_cameraBase/get_caminfo.cgi'), headers: _headers)
         .timeout(timeout);
     final info = <String, String>{};
     // Parse simple XML tags
@@ -141,7 +152,7 @@ class CameraApi {
   /// Switch camera mode: play, rec, shutter
   Future<void> switchMode(String mode) async {
     await _client
-        .get(Uri.parse('$baseUrl/switch_cammode.cgi?mode=$mode'),
+        .get(Uri.parse('$_cameraBase/switch_cammode.cgi?mode=$mode'),
             headers: _headers)
         .timeout(timeout);
   }
@@ -157,7 +168,7 @@ class CameraApi {
     http.Response resp;
     try {
       resp = await _client
-          .get(Uri.parse('$baseUrl/get_imglist.cgi?DIR=$dir'),
+          .get(Uri.parse('$_cameraBase/get_imglist.cgi?DIR=$dir'),
               headers: _headers)
           .timeout(timeout);
     } catch (e) {
@@ -258,7 +269,7 @@ class CameraApi {
   Future<bool> deleteFile(CameraFile file) async {
     try {
       final resp = await _client
-          .get(Uri.parse('$baseUrl/exec_erase.cgi?DIR=${file.fullPath}'),
+          .get(Uri.parse('$_cameraBase/exec_erase.cgi?DIR=${file.fullPath}'),
               headers: _headers)
           .timeout(timeout);
       // Olympus returns 200 on success; 403/500 etc on failure.
@@ -297,10 +308,20 @@ class CameraApi {
   }
 
   /// Download file bytes
+  ///
+  /// Throws on a non-200 response so callers never save a camera error page
+  /// (HTML, empty body) as if it were the photo.
   Future<List<int>> downloadFile(CameraFile file) async {
     final resp = await _client
         .get(Uri.parse(file.downloadUrl), headers: _headers)
         .timeout(downloadTimeout);
+    if (resp.statusCode != 200) {
+      AppLogger.warning(
+        'downloadFile(${file.fullPath}) failed: HTTP ${resp.statusCode}',
+        name: 'camera_api',
+      );
+      throw Exception('HTTP ${resp.statusCode}');
+    }
     return resp.bodyBytes;
   }
 

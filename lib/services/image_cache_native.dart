@@ -11,8 +11,14 @@ import 'service_config.dart';
 /// Persistent disk cache for camera images (thumbnails + previews).
 /// Keeps the last [maxImages] images cached across all resolutions.
 class ImageDiskCache {
-  static final ImageDiskCache instance = ImageDiskCache._();
+  /// Non-final so widget tests can swap in an in-memory fake (see
+  /// [forTesting]); production keeps the singleton set here.
+  static ImageDiskCache instance = ImageDiskCache._();
   ImageDiskCache._();
+
+  /// Opens the class for subclassing in tests only (e.g. an in-memory fake).
+  @visibleForTesting
+  ImageDiskCache.forTesting();
 
   static const int maxImages = kMaxCacheImages;
   static const String _lruKey = 'image_cache_lru';

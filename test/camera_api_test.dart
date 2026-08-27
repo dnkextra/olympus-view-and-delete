@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:olympus_tg6_manager/services/camera_api.dart';
 
+import 'helpers/test_helpers.dart';
+
 CameraFile _file({
   String dir = '/DCIM/100OLYMP',
   String name = 'P1.JPG',
@@ -174,6 +176,26 @@ void main() {
       expect(f.resizeImgUrl(1920),
           contains('/get_resizeimg.cgi?DIR=/DCIM/100OLYMP/P1.JPG&size=1920'));
       expect(f.downloadUrl, endsWith('/DCIM/100OLYMP/P1.JPG'));
+    });
+  });
+
+  group('CameraApi.downloadFile', () {
+    test('returns body bytes on HTTP 200', () async {
+      final api = CameraApi(
+        client: fixedResponseClient(status: 200, body: 'JPEGDATA'),
+      );
+      final bytes = await api.downloadFile(_file());
+      expect(String.fromCharCodes(bytes), 'JPEGDATA');
+      api.dispose();
+    });
+
+    test('throws on HTTP 404 instead of returning an error page as bytes',
+        () async {
+      final api = CameraApi(
+        client: fixedResponseClient(status: 404, body: '<html>error</html>'),
+      );
+      await expectLater(api.downloadFile(_file()), throwsA(isException));
+      api.dispose();
     });
   });
 }

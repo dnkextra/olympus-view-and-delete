@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -104,8 +104,16 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     _cameraQueue.cancelPendingPreloads(
       exceptKey: 'preview:$currentKey',
     );
+    // Evict far-away frames immediately. The old terminal eviction at the end
+    // of `_loadAroundPrioritized` only ran after a full settle, so paging
+    // faster than preloads could finish let `_imageCache` grow unbounded.
+    _evictFar(index);
     unawaited(_loadAroundPrioritized(index, generation));
   }
+
+  /// Test hook: number of full-screen previews currently held in memory.
+  @visibleForTesting
+  int get debugPreviewCacheCount => _imageCache.length;
 
   bool _isCurrentPreload(int index, int generation) =>
       mounted &&
@@ -181,7 +189,6 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       await Future.wait(pair);
       if (!_isCurrentPreload(index, generation)) return;
     }
-    _evictFar(index);
   }
 
   void _evictFar(int index) {
