@@ -7,9 +7,8 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Release tag, for example v1.3.7"
+        description: "Existing release tag, for example v1.3.8"
         required: true
-        default: "v1.3.6"
 
 permissions:
   contents: write
@@ -275,8 +274,10 @@ jobs:
     needs: [android, windows, web]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout changelog
+      - name: Checkout changelog and tags
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Download Android artifacts
         uses: actions/download-artifact@v7
         with:
@@ -292,7 +293,7 @@ jobs:
         with:
           name: release-web
           path: dist
-      - name: Prepare release notes and checksums
+      - name: Validate release tag and prepare notes
         shell: bash
         env:
           INPUT_TAG: ${{ github.event.inputs.release_tag }}
@@ -301,17 +302,32 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             tag="$GITHUB_REF_NAME"
           else
-            tag="${INPUT_TAG:-v1.3.6}"
+            tag="${INPUT_TAG:?workflow_dispatch requires release_tag}"
           fi
-          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          [[ "$tag" == v* ]] || { echo "ERROR: release tag must start with v: $tag" >&2; exit 1; }
+
           version="${tag#v}"
+          app_version="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml | head -n 1)"
+          [[ -n "$app_version" ]] || { echo "ERROR: cannot read version from pubspec.yaml" >&2; exit 1; }
+          if [[ "$version" != "$app_version" ]]; then
+            echo "ERROR: release tag $tag does not match pubspec version $app_version." >&2
+            exit 1
+          fi
+
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "ERROR: tag $tag does not exist. Create/push the tag first; its push will normally start this workflow automatically." >&2
+            exit 1
+          fi
+
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
           awk -v version="$version" '
             $0 ~ "^## \\[" version "\\]" {capture=1; next}
             capture && $0 ~ "^## \\[" {exit}
             capture {print}
           ' CHANGELOG.md > release-notes.md
           if [[ ! -s release-notes.md ]]; then
-            echo "Olympus View $tag" > release-notes.md
+            echo "ERROR: CHANGELOG.md has no section for $version" >&2
+            exit 1
           fi
           (cd dist && sha256sum OlympusView-Android.apk OlympusView-Android.aab OlympusView-Windows.zip OlympusView-Web.zip > SHA256SUMS.txt)
       - name: Create GitHub Release
@@ -331,6 +347,6 @@ jobs:
             dist/OlympusView-Web.zip \
             dist/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
+            --verify-tag \
             --title "Olympus View $RELEASE_TAG" \
             --notes-file release-notes.md
