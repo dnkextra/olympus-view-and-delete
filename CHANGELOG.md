@@ -2,6 +2,9 @@
 
 ## [1.3.7] - 2026-08-27
 
+### Android signing compatibility
+- Users already on **1.3.6 or newer** can update normally. Users on **1.3.5 or older** still need the one-time uninstall/reinstall introduced by 1.3.6 because those older APKs were signed with the temporary legacy certificate.
+
 ### Added
 - **On-device camera integration tests** with an in-process fake Olympus camera over real TCP sockets. The new suite covers gallery/preview browsing, real filesystem cache persistence, thumbnail concurrency, HTTP failures and camera disconnects/truncated transfers.
 - **Failure-path cache tests** verify that HTTP 500 responses, non-JPEG bodies and truncated JPEG transfers never enter the thumbnail or full-screen preview caches.
@@ -117,7 +120,7 @@
 
 ### Changed
 - Replaced silently swallowed `catch (_) {}` blocks across services, screens and dialogs with logged handlers that capture the error and stack trace
-- Extracted magic numbers into named constants: camera request/download/probe timeouts, mode-switch delay, disk/memory cache caps, thumbnail concurrency, history size, preview resolution) live in `lib/services/service_config.dart` as plain Dart constants, with no Flutter UI dependency.
+- Extracted magic numbers into named constants: camera request/download/probe timeouts, mode-switch delay, disk/memory cache caps, thumbnail concurrency, batch-flush interval, QR success delay, preview load timeout, preview keep-neighbors and preview image size; removed duplicate constants and resolved the `_keepNeighbors` TODO
 - Unified filename sanitisation into a single `sanitizeFilename` (`lib/services/filename_sanitizer.dart`), replacing the duplicate copies in `camera_api` and both file savers
 - Extracted shared `_showSnack` / `_confirm` helpers in `HomeScreen` (removed duplicated SnackBar and confirmation-dialog code in download/delete handlers) and a shared `_itemDecoration` in `PhotoGrid`
 - Stricter linting in `analysis_options.yaml`: `avoid_print` (as error), `use_build_context_synchronously`, `unawaited_futures`, `cancel_subscriptions`, `close_sinks`, `prefer_final_locals`, `directives_ordering`
