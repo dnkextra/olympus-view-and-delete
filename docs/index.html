@@ -68,11 +68,11 @@
       "url": "https://dpolarov.github.io/olympus-view-and-delete/",
       "downloadUrl": "https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk",
       "sameAs": "https://github.com/dpolarov/olympus-view-and-delete",
-      "softwareVersion": "1.3.6",
+      "softwareVersion": "1.3.7",
       "datePublished": "2026-03-15",
-      "dateModified": "2026-08-16",
+      "dateModified": "2026-08-27",
       "isAccessibleForFree": true,
-      "releaseNotes": "https://github.com/dpolarov/olympus-view-and-delete/releases/tag/v1.3.6",
+      "releaseNotes": "https://github.com/dpolarov/olympus-view-and-delete/releases/tag/v1.3.7",
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -927,6 +927,18 @@
     <h2 id="changelog-en">Changelog</h2>
     <div class="changelog">
                         <div class="changelog-version">
+            <h3>v1.3.7 — August 27, 2026</h3>
+            <h4>Camera-transfer reliability &amp; stronger integration tests</h4>
+            <ul>
+                <li><strong>Fixed thumbnail fetch races</strong> — disk-cache lookup now finishes before a camera network slot is consumed.</li>
+                <li><strong>Bounded full-screen preview cache</strong> during rapid paging, even when swiping faster than neighbor preloading.</li>
+                <li><strong>Safer downloads</strong> — non-200 camera responses are rejected instead of being saved as files.</li>
+                <li><strong>Failed/truncated transfers never poison caches</strong>, verified with HTTP 500, garbage-body and mid-transfer failure scenarios.</li>
+                <li><strong>On-device integration tests</strong> now exercise a fake Olympus camera over real TCP sockets, filesystem cache persistence and thumbnail concurrency.</li>
+                <li>Version: <strong>1.3.7+16</strong>.</li>
+            </ul>
+        </div>
+        <div class="changelog-version">
             <h3>v1.3.6 — August 16, 2026</h3>
             <h4>Updater reliability, downloaded-file cleanup &amp; production signing</h4>
             <ul>
@@ -1222,6 +1234,18 @@
     <h2 id="changelog-uk">Журнал змін</h2>
     <div class="changelog">
                         <div class="changelog-version">
+            <h3>v1.3.7 — 27 серпня 2026</h3>
+            <h4>Надійніша передача з камери та розширені інтеграційні тести</h4>
+            <ul>
+                <li><strong>Виправлено гонку завантаження мініатюр</strong> — перевірка дискового кешу завершується до зайняття мережевого слота камери.</li>
+                <li><strong>Обмежено кеш повноекранного перегляду</strong> під час швидкого гортання.</li>
+                <li><strong>Безпечніше завантаження</strong> — відповіді камери з HTTP-кодом, відмінним від 200, більше не зберігаються як файли.</li>
+                <li><strong>Помилкові та обірвані передачі не потрапляють у кеш</strong>.</li>
+                <li><strong>Інтеграційні тести на Android</strong> перевіряють фальшиву Olympus-камеру через реальні TCP-з'єднання, файловий кеш і паралельність мініатюр.</li>
+                <li>Версія: <strong>1.3.7+16</strong>.</li>
+            </ul>
+        </div>
+        <div class="changelog-version">
             <h3>v1.3.6 — 16 серпня 2026</h3>
             <h4>Надійне оновлення, вибір завантажених файлів і production-підпис</h4>
             <ul>
@@ -1533,6 +1557,18 @@
     <h2 id="changelog-ru">Журнал изменений</h2>
     <div class="changelog">
                         <div class="changelog-version">
+            <h3>v1.3.7 — 27 августа 2026</h3>
+            <h4>Надёжнее передача с камеры и расширенные интеграционные тесты</h4>
+            <ul>
+                <li><strong>Исправлена гонка загрузки миниатюр</strong> — проверка дискового кэша завершается до занятия сетевого слота камеры.</li>
+                <li><strong>Ограничен кэш полноэкранного превью</strong> при быстром листании.</li>
+                <li><strong>Безопаснее скачивание</strong> — ответы камеры с HTTP-кодом не 200 больше не сохраняются как файлы.</li>
+                <li><strong>Ошибочные и оборванные передачи не попадают в кэш</strong>.</li>
+                <li><strong>Интеграционные тесты на Android</strong> проверяют фальшивую Olympus-камеру через реальные TCP-соединения, файловый кэш и параллельность миниатюр.</li>
+                <li>Версия: <strong>1.3.7+16</strong>.</li>
+            </ul>
+        </div>
+        <div class="changelog-version">
             <h3>v1.3.6 — 16 августа 2026</h3>
             <h4>Надёжное обновление, выбор скачанных файлов и production-подпись</h4>
             <ul>

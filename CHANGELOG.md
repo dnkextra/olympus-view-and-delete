@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.7] - 2026-08-27
+
+### Android signing compatibility
+- Users already on **1.3.6 or newer** can update normally. Users on **1.3.5 or older** still need the one-time uninstall/reinstall introduced by 1.3.6 because those older APKs were signed with the temporary legacy certificate.
+
+### Added
+- **On-device camera integration tests** with an in-process fake Olympus camera over real TCP sockets. The new suite covers gallery/preview browsing, real filesystem cache persistence, thumbnail concurrency, HTTP failures and camera disconnects/truncated transfers.
+- **Failure-path cache tests** verify that HTTP 500 responses, non-JPEG bodies and truncated JPEG transfers never enter the thumbnail or full-screen preview caches.
+
+### Changed
+- Thumbnail loading now completes its disk-cache lookup before consuming a camera-network slot or starting an HTTP request, preventing cache hits from starving real camera transfers.
+- Full-screen preview evicts frames outside the configured neighbor window immediately while paging, keeping memory bounded even when the user swipes faster than preloading can finish.
+- Version set to **1.3.7+16**.
+
+### Fixed
+- Fixed a thumbnail fetch race where network work could start before the disk-cache lookup resolved, wasting limited camera connections and delaying visible images.
+- Fixed unbounded growth of the in-memory full-screen preview cache during rapid paging.
+- `CameraApi.downloadFile` now rejects non-200 responses instead of saving an HTTP error body as if it were the requested photo/video.
+- Failed or interrupted camera transfers are no longer allowed to poison persistent image caches.
+
 ## [1.3.6] - 2026-08-16
 
 ### Important — one-time reinstall for 1.3.5 and older
@@ -93,7 +113,7 @@
 ### Added
 - **Unified logging** (`AppLogger`): cross-platform logger built on `dart:developer` with `debug/info/warning/error` levels; release builds suppress logs below `warning`
 - **Centralised service tuning** (`lib/services/service_config.dart`): named constants for network timeouts, cache/memory limits, connection-history size and preview resolution (no Flutter UI dependency)
-- **In-memory thumbnail cache byte cap** (`kMaxMemThumbBytes`, 32 MiB): the thumbnail LRU now bounds RAM by total bytes in addition to entry count, so a few unusually large thumbnails can't exhaust memory; covered by new `thumbnail_manager_test.dart`
+- **In-memory thumbnail cache byte cap** (`kMaxMemThumbBytes`, 32 MiB): the thumbnail LRU now bounds RAM by total bytes in addition to entry count, so a few unusually large thumbnails can't exhaust RAM; covered by new `thumbnail_manager_test.dart`
 - **Network-error test coverage** (`camera_api_network_test.dart`): `CameraApi.listImages`/`deleteFile`/`deleteFiles` now tested against 404s, timeouts, connection failures, malformed records and corrupt FAT dates via an injectable `http.Client`
 - **Localization tests** (`l10n_test.dart`): verify key parity across `en`/`ru`/`uk` ARB files, no orphan/empty translations, placeholder consistency, and that every supported locale resolves
 - **Shared test helpers** (`test/helpers/test_helpers.dart`): `FakePathProvider` and `fixedResponseClient` extracted from duplicated mock-init code in the disk-cache and preview-screen tests
