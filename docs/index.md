@@ -2,7 +2,7 @@
 
 > Manage, download, and delete photos on Olympus and OM System cameras over the camera's local WiFi network. Olympus View is an unofficial cross-platform alternative to OI.Share for Android, Windows, and Web.
 
-**Current Android release:** v1.3.6+15 — August 16, 2026  
+**Current Android release:** v1.3.7+16 — August 27, 2026  
 **Source:** https://github.com/dpolarov/olympus-view-and-delete  
 **Latest release:** https://github.com/dpolarov/olympus-view-and-delete/releases/latest  
 **Android APK:** https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk
@@ -120,7 +120,7 @@ Android does not allow an APK signed by an unrelated certificate to replace an i
 
 That uninstall clears Olympus View's local settings and downloaded-marker history. It does **not** delete photos already saved on the phone and does not delete files on the camera.
 
-After v1.3.6 has been installed, future direct APK releases use the same permanent production signing identity and can update normally.
+After v1.3.6 has been installed, future direct APK releases, including v1.3.7, use the same permanent production signing identity and can update normally.
 
 ## Technical details
 
@@ -156,15 +156,15 @@ Full privacy policy:
 
 https://dpolarov.github.io/olympus-view-and-delete/privacy.md
 
-## v1.3.6 highlights
+## v1.3.7 highlights
 
-- Visible APK update progress and network-waiting status.
-- Retry, cancel, and in-app Install controls for GitHub updates.
-- Camera auto-connect is suppressed while an app update needs internet.
-- **Select downloaded** selects all visible files with persistent green downloaded markers.
-- Permanent production Android signing identity introduced.
-- Separate Google Play upload key introduced.
-- Version: **1.3.6+15**.
+- Thumbnail disk-cache lookup now completes before consuming a camera-network slot, preventing cache hits from starving real camera transfers.
+- Full-screen preview cache stays bounded during rapid paging, even when swiping faster than neighbor preloading.
+- Non-200 camera download responses are rejected instead of being saved as files.
+- Failed, invalid, or truncated transfers are prevented from poisoning persistent thumbnail and preview caches.
+- New on-device Android integration tests exercise a fake Olympus camera over real TCP sockets, filesystem cache persistence, failure paths, and thumbnail concurrency.
+- Users on **v1.3.6 or newer** can update normally; users on **v1.3.5 or older** still need the one-time reinstall introduced in v1.3.6.
+- Version: **1.3.7+16**.
 
 Detailed changelog:
 
