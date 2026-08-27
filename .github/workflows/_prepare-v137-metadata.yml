@@ -1,0 +1,32 @@
+name: Prepare v1.3.7 metadata once
+
+on:
+  push:
+    branches:
+      - agent/release-v1.3.7
+    paths:
+      - '.github/workflows/_prepare-v137-metadata.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/release-v1.3.7
+      - name: Apply metadata patch
+        run: python scripts/_prepare_v137_release.py
+      - name: Commit metadata
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md docs/index.html .github/workflows/release.yml
+          if git diff --cached --quiet; then
+            echo "No metadata changes needed"
+            exit 0
+          fi
+          git commit -m "Finalize v1.3.7 release metadata"
+          git push origin HEAD:agent/release-v1.3.7
