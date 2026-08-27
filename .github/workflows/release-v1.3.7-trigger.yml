@@ -1,0 +1,21 @@
+name: Trigger v1.3.7 Release
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/release-v1.3.7-trigger.yml'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref master -f release_tag=v1.3.7
