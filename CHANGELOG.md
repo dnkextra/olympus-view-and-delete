@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.3.7] - 2026-08-27
+
+### Added
+- **On-device camera integration tests** with an in-process fake Olympus camera over real TCP sockets. The new suite covers gallery/preview browsing, real filesystem cache persistence, thumbnail concurrency, HTTP failures and camera disconnects/truncated transfers.
+- **Failure-path cache tests** verify that HTTP 500 responses, non-JPEG bodies and truncated JPEG transfers never enter the thumbnail or full-screen preview caches.
+
+### Changed
+- Thumbnail loading now completes its disk-cache lookup before consuming a camera-network slot or starting an HTTP request, preventing cache hits from starving real camera transfers.
+- Full-screen preview evicts frames outside the configured neighbor window immediately while paging, keeping memory bounded even when the user swipes faster than preloading can finish.
+- Version set to **1.3.7+16**.
+
+### Fixed
+- Fixed a thumbnail fetch race where network work could start before the disk-cache lookup resolved, wasting limited camera connections and delaying visible images.
+- Fixed unbounded growth of the in-memory full-screen preview cache during rapid paging.
+- `CameraApi.downloadFile` now rejects non-200 responses instead of saving an HTTP error body as if it were the requested photo/video.
+- Failed or interrupted camera transfers are no longer allowed to poison persistent image caches.
+
 ## [1.3.6] - 2026-08-16
 
 ### Important — one-time reinstall for 1.3.5 and older
@@ -93,14 +110,14 @@
 ### Added
 - **Unified logging** (`AppLogger`): cross-platform logger built on `dart:developer` with `debug/info/warning/error` levels; release builds suppress logs below `warning`
 - **Centralised service tuning** (`lib/services/service_config.dart`): named constants for network timeouts, cache/memory limits, connection-history size and preview resolution (no Flutter UI dependency)
-- **In-memory thumbnail cache byte cap** (`kMaxMemThumbBytes`, 32 MiB): the thumbnail LRU now bounds RAM by total bytes in addition to entry count, so a few unusually large thumbnails can't exhaust memory; covered by new `thumbnail_manager_test.dart`
+- **In-memory thumbnail cache byte cap** (`kMaxMemThumbBytes`, 32 MiB): the thumbnail LRU now bounds RAM by total bytes in addition to entry count, so a few unusually large thumbnails can't exhaust RAM; covered by new `thumbnail_manager_test.dart`
 - **Network-error test coverage** (`camera_api_network_test.dart`): `CameraApi.listImages`/`deleteFile`/`deleteFiles` now tested against 404s, timeouts, connection failures, malformed records and corrupt FAT dates via an injectable `http.Client`
 - **Localization tests** (`l10n_test.dart`): verify key parity across `en`/`ru`/`uk` ARB files, no orphan/empty translations, placeholder consistency, and that every supported locale resolves
 - **Shared test helpers** (`test/helpers/test_helpers.dart`): `FakePathProvider` and `fixedResponseClient` extracted from duplicated mock-init code in the disk-cache and preview-screen tests
 
 ### Changed
 - Replaced silently swallowed `catch (_) {}` blocks across services, screens and dialogs with logged handlers that capture the error and stack trace
-- Extracted magic numbers into named constants: camera request/download/probe timeouts, mode-switch delay, disk/memory cache caps, thumbnail concurrency, batch-flush interval, QR success delay, preview load timeout, preview keep-neighbors and preview image size; removed duplicate constants and resolved the `_keepNeighbors` TODO
+- Extracted magic numbers into named constants: camera request/download/probe timeouts, mode-switch delay, disk/memory cache caps, thumbnail concurrency, history size, preview resolution) live in `lib/services/service_config.dart` as plain Dart constants, with no Flutter UI dependency.
 - Unified filename sanitisation into a single `sanitizeFilename` (`lib/services/filename_sanitizer.dart`), replacing the duplicate copies in `camera_api` and both file savers
 - Extracted shared `_showSnack` / `_confirm` helpers in `HomeScreen` (removed duplicated SnackBar and confirmation-dialog code in download/delete handlers) and a shared `_itemDecoration` in `PhotoGrid`
 - Stricter linting in `analysis_options.yaml`: `avoid_print` (as error), `use_build_context_synchronously`, `unawaited_futures`, `cancel_subscriptions`, `close_sinks`, `prefer_final_locals`, `directives_ordering`
