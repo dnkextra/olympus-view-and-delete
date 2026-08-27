@@ -8,7 +8,7 @@ on:
       - '.github/workflows/publish-v1.3.7.yml'
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -20,17 +20,9 @@ jobs:
         with:
           ref: v1.3.7
 
-      - name: Validate release token
-        env:
-          RELEASE_TOKEN: ${{ secrets.SITE_REPO_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ -n "$RELEASE_TOKEN" ]] || { echo 'SITE_REPO_TOKEN is missing'; exit 1; }
-
       - name: Download verified v1.3.7 build artifacts
         env:
-          GH_TOKEN: ${{ secrets.SITE_REPO_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -57,7 +49,7 @@ jobs:
 
       - name: Publish GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.SITE_REPO_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
