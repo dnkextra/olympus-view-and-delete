@@ -26,7 +26,7 @@ Important upgrade note: direct APK users already on v1.3.6 or newer can update n
 
 - [Latest GitHub release](https://github.com/dpolarov/olympus-view-and-delete/releases/latest): Current release notes and downloadable release assets.
 - [Project README](https://raw.githubusercontent.com/dpolarov/olympus-view-and-delete/master/README.md): Developer-oriented project overview, build instructions, protocol notes, and usage.
-- [Changelog](https://raw.githubusercontent.com/dpolarov/olymus-view-and-delete/master/CHANGELOG.md): Detailed version history.
+- [Changelog](https://raw.githubusercontent.com/dpolarov/olympus-view-and-delete/master/CHANGELOG.md): Detailed version history.
 
 ## Development
 
