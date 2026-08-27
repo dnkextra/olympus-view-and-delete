@@ -1,0 +1,173 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  FLUTTER_VERSION: "3.44.7"
+  APP_BASE_HREF: "/olympus-view-and-delete/app/"
+  CLOUDFLARE_WEB_ANALYTICS_TOKEN: "bd434797397f404aa34ff341f3ae1aaf"
+
+concurrency:
+  group: github-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build site and Web app
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Enable Web
+        run: flutter config --enable-web
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify lock file is synchronized
+        run: git diff --exit-code -- pubspec.lock
+
+      - name: Prepare build metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "BUILD_TIME_UTC=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+          echo "BUILD_GIT_COMMIT=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build Flutter Web for Pages
+        run: >-
+          flutter build web --release
+          --base-href "${APP_BASE_HREF}"
+          --dart-define=OLYMPUS_BUILD_TIME_UTC=${BUILD_TIME_UTC}
+          --dart-define=OLYMPUS_GIT_COMMIT=${BUILD_GIT_COMMIT}
+          --dart-define=OLYMPUS_FLUTTER_VERSION=${FLUTTER_VERSION}
+
+      - name: Assemble Pages site
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site/app
+          cp -a docs/. _site/
+          cp -a build/web/. _site/app/
+          touch _site/.nojekyll
+
+      - name: Point landing page Web cards at hosted app
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          page = Path('_site/index.html')
+          text = page.read_text(encoding='utf-8')
+          old_url = 'https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Web.zip'
+          app_url = 'https://dpolarov.github.io/olympus-view-and-delete/app/'
+          count = text.count(old_url)
+          if count != 3:
+              raise SystemExit(f'Expected exactly 3 Web download cards, found {count}')
+          text = text.replace(old_url, app_url)
+          replacements = {
+              'Web build ZIP<br>Run in browser': 'Live Web App<br>Open in browser',
+              'Web ZIP<br>Прямая загрузка': 'Web-приложение<br>Открыть в браузере',
+              'Web ZIP<br>Запуск в браузере': 'Web-приложение<br>Открыть в браузере',
+              'Web ZIP<br>Пряме завантаження': 'Web-застосунок<br>Відкрити у браузері',
+              'Web ZIP<br>Запуск у браузері': 'Web-застосунок<br>Відкрити у браузері',
+          }
+          for old, new in replacements.items():
+              text = text.replace(old, new)
+          page.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Add Cloudflare Web Analytics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          token = os.environ['CLOUDFLARE_WEB_ANALYTICS_TOKEN']
+          beacon = (
+              "<!-- Cloudflare Web Analytics -->"
+              "<script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' "
+              f"data-cf-beacon='{{\"token\": \"{token}\"}}'></script>"
+              "<!-- End Cloudflare Web Analytics -->"
+          )
+
+          html_files = sorted(Path('_site').rglob('*.html'))
+          if not html_files:
+              raise SystemExit('No HTML files found in assembled Pages site')
+
+          for page in html_files:
+              text = page.read_text(encoding='utf-8')
+              if token in text:
+                  continue
+              if '</body>' not in text:
+                  raise SystemExit(f'Missing </body> in {page}')
+              text = text.replace('</body>', f'  {beacon}\n</body>', 1)
+              page.write_text(text, encoding='utf-8')
+              print(f'Cloudflare analytics injected: {page}')
+          PY
+
+      - name: Verify Pages output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s _site/index.html
+          test -s _site/llms.txt
+          test -s _site/app/index.html
+          test -s _site/app/main.dart.js
+          grep -Fq '<base href="/olympus-view-and-delete/app/">' _site/app/index.html
+          grep -Fq 'https://dpolarov.github.io/olympus-view-and-delete/app/' _site/index.html
+          ! grep -Fq 'releases/latest/download/OlympusView-Web.zip' _site/index.html
+          grep -Fq 'G-W01S13EG7K' _site/index.html
+          grep -Fq "$CLOUDFLARE_WEB_ANALYTICS_TOKEN" _site/index.html
+          grep -Fq "$CLOUDFLARE_WEB_ANALYTICS_TOKEN" _site/app/index.html
+          grep -Fq 'static.cloudflareinsights.com/beacon.min.js' _site/index.html
+          grep -Fq 'static.cloudflareinsights.com/beacon.min.js' _site/app/index.html
+          test ! -d _site/docs
+          echo "Landing page: _site/index.html"
+          echo "Flutter Web: _site/app/index.html"
+
+      - name: Configure Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

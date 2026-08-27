@@ -1,0 +1,126 @@
+# Olympus View — WiFi файловий менеджер для камер Olympus та OM System
+
+> Olympus View дозволяє переглядати, завантажувати та видаляти фотографії на сумісних камерах Olympus та OM System через локальну WiFi-мережу камери. Це неофіційна кросплатформна альтернатива OI.Share для Android, Windows і Web.
+
+**Поточна Android-версія:** v1.3.6+15 — 16 серпня 2026  
+**Вихідний код:** https://github.com/dpolarov/olympus-view-and-delete  
+**Останній реліз:** https://github.com/dpolarov/olympus-view-and-delete/releases/latest  
+**Android APK:** https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk
+
+Olympus View не пов'язаний з OM Digital Solutions, Olympus Corporation або OM System і не є офіційним застосунком цих компаній.
+
+## Основні можливості
+
+- Видалення файлів безпосередньо з камери через WiFi.
+- Масовий вибір і завантаження фотографій.
+- Вибір файлів за датою.
+- Фонове завантаження на Android, коли застосунок згорнуто або екран вимкнено.
+- Постійні зелені позначки вже завантажених файлів.
+- Кнопка **«Вибрати завантажені»**, яка вибирає всі видимі файли із зеленою позначкою для подальшого масового видалення з камери.
+- Фільтр RAW/ORF під час зйомки RAW+JPG.
+- QR-підключення на Android із підтримкою форматів OIS1 та OIS3.
+- Робота на Android, Windows і в браузері.
+
+## Підтримувані камери
+
+На сайті проєкту перелічені такі моделі:
+
+- OM System OM-1
+- OM System OM-1 Mark II
+- OM System OM-5
+- Olympus E-M1 Mark II
+- Olympus E-M1 Mark III
+- Olympus E-M5 Mark III
+- Olympus E-M10 Mark III
+- Olympus E-M10 Mark IV
+- Olympus TG-6
+- Olympus TG-7
+- Olympus E-PL10
+- Olympus PEN E-P7
+
+Застосунок використовує локальний інтерфейс Olympus OPC. Фактична сумісність залежить від наявності очікуваних OPC-команд і формату підключення конкретної камери.
+
+## Як користуватися
+
+1. Увімкніть WiFi на камері Olympus / OM System.
+2. На Android відкрийте Olympus View і відскануйте QR-код з екрана камери.
+3. На Windows/Web підключіть комп'ютер до WiFi-мережі камери та відкрийте Olympus View.
+4. Дочекайтеся завантаження списку файлів і мініатюр.
+5. Довгим натисканням на фотографію увійдіть у режим вибору.
+6. Використовуйте вибір за датою або кнопку **«Вибрати завантажені»**.
+7. Завантажте вибрані файли або видаліть їх із карти пам'яті камери.
+8. За потреби приховуйте RAW/ORF кнопкою RAW.
+
+## Завантаження
+
+### Android
+
+Останній APK для прямого встановлення:
+
+https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Android.apk
+
+### Windows
+
+Остання portable-збірка Windows x64:
+
+https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Windows.zip
+
+### Web
+
+Остання Web-збірка ZIP. Розпакуйте архів, запустіть каталог через локальний HTTP-сервер (в архіві є README) та підключіть комп'ютер до WiFi камери.
+
+https://github.com/dpolarov/olympus-view-and-delete/releases/latest/download/OlympusView-Web.zip
+
+## Важлива зміна підпису у v1.3.6
+
+Версії до v1.3.5 включно були підписані тимчасовим debug-сертифікатом Android. Починаючи з v1.3.6 використовується постійний production-сертифікат.
+
+Android не дозволяє APK з іншим підписом замінити вже встановлений застосунок із тим самим package name. Тому користувачам прямого APK на **v1.3.5 або старішій версії потрібно один раз видалити старий Olympus View і встановити v1.3.6 заново**.
+
+Видалення застосунку скидає локальні налаштування Olympus View та історію зелених позначок завантажених файлів. Воно **не видаляє** фотографії, які вже збережені на телефоні, і не видаляє файли на камері.
+
+Після встановлення v1.3.6 наступні версії оновлюватимуться поверх неї з тим самим постійним production-підписом.
+
+## Технічні відомості
+
+- Flutter / Dart
+- Material 3
+- Android package: `com.flynew.photomanager`
+- Локальний HTTP-інтерфейс камери зазвичай доступний за адресою `192.168.0.10`
+- Протокол: Olympus OPC
+- QR: OIS1 та OIS3
+
+Основні OPC-запити проєкту:
+
+- список файлів: `GET /get_imglist.cgi?DIR=/DCIM`
+- мініатюра: `GET /get_thumbnail.cgi?DIR=<path>`
+- видалення: `GET /exec_erase.cgi?DIR=<path>`
+- завантаження: `GET /<path>`
+- режим перегляду: `GET /switch_cammode.cgi?mode=play`
+- інформація про камеру: `GET /get_caminfo.cgi`
+
+## Конфіденційність
+
+В Olympus View немає облікових записів користувачів, реклами, власного аналітичного backend або хмарного сховища фотографій розробника. Фотографії та дані підключення камери обробляються локально. Для розпізнавання QR на Android використовується Google ML Kit через Mobile Scanner; технічні діагностичні дані Google описані у повній політиці.
+
+Політика конфіденційності:
+
+https://dpolarov.github.io/olympus-view-and-delete/privacy.md
+
+## Що нового у v1.3.6
+
+- Видимий прогрес завантаження оновлення APK.
+- Статус очікування інтернету, повтор, скасування та кнопка встановлення.
+- Автопідключення до WiFi камери призупиняється під час оновлення застосунку.
+- Кнопка **«Вибрати завантажені»** для всіх видимих файлів із зеленою позначкою.
+- Постійний production-підпис Android.
+- Окремий upload key для Google Play.
+- Версія **1.3.6+15**.
+
+Повний changelog:
+
+https://raw.githubusercontent.com/dpolarov/olympus-view-and-delete/master/CHANGELOG.md
+
+## Вихідний код
+
+https://github.com/dpolarov/olympus-view-and-delete

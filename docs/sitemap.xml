@@ -3,11 +3,24 @@
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://dpolarov.github.io/olympus-view-and-delete/</loc>
-    <lastmod>2026-05-29</lastmod>
+    <lastmod>2026-08-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://dpolarov.github.io/olympus-view-and-delete/"/>
     <xhtml:link rel="alternate" hreflang="ru" href="https://dpolarov.github.io/olympus-view-and-delete/?lang=ru"/>
     <xhtml:link rel="alternate" hreflang="uk" href="https://dpolarov.github.io/olympus-view-and-delete/?lang=uk"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://dpolarov.github.io/olympus-view-and-delete/"/>
+  </url>
+  <url>
+    <loc>https://dpolarov.github.io/olympus-view-and-delete/app/</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://dpolarov.github.io/olympus-view-and-delete/privacy.html</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
   </url>
 </urlset>
