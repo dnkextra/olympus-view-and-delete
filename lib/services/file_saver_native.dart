@@ -1,31 +1,29 @@
-import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:media_scanner/media_scanner.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'app_logger.dart';
 import 'filename_sanitizer.dart';
+
+const _mediaStore = MethodChannel('olympus_view/media_store');
 
 Future<String> saveFileToDevice(
     String filename, List<int> bytes, String? dirPath) async {
-  final dir = dirPath ?? await getSaveDirectory();
-  await ensureDirectory(dir);
   final safe = sanitizeFilename(filename);
-  final filePath = '$dir/$safe';
-  final file = File(filePath);
-  await file.writeAsBytes(bytes);
-
-  // Notify Android MediaScanner so file appears in Gallery
   if (Platform.isAndroid) {
-    try {
-      unawaited(MediaScanner.loadMedia(path: filePath));
-    } catch (e) {
-      // Non-fatal: file is saved, only the gallery refresh failed.
-      AppLogger.debug('MediaScanner.loadMedia failed: $e', name: 'file_saver');
-    }
+    final uri = await _mediaStore.invokeMethod<String>('saveMedia', {
+      'filename': safe,
+      'bytes': bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
+    });
+    if (uri == null) throw const FileSystemException('MediaStore save failed');
+    return uri;
   }
 
+  final dir = dirPath ?? await getSaveDirectory();
+  await ensureDirectory(dir);
+  final filePath = '$dir/$safe';
+  await File(filePath).writeAsBytes(bytes);
   return filePath;
 }
 
@@ -39,6 +37,7 @@ Future<String> getSaveDirectory() async {
 }
 
 Future<void> ensureDirectory(String path) async {
+  if (Platform.isAndroid) return;
   final dir = Directory(path);
   if (!await dir.exists()) {
     await dir.create(recursive: true);
