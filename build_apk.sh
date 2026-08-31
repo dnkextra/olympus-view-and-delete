@@ -52,7 +52,7 @@ echo "Installing/verifying: $REQUIRED_PLATFORM, $REQUIRED_BUILD_TOOLS, $REQUIRED
 yes | "$CMDLINE_TOOLS/sdkmanager" \
     "$REQUIRED_PLATFORM" \
     "$REQUIRED_BUILD_TOOLS" \
-    "$REQUIRED_NDK" >/dev/null
+    "$REQUIRED_NDK" >/dev/null || true  # `yes` gets SIGPIPE; pipefail would abort
 
 echo "Accepting Android SDK licenses..."
 yes | "$CMDLINE_TOOLS/sdkmanager" --licenses >/dev/null || true
@@ -63,9 +63,11 @@ flutter doctor
 echo "== 5. Building release APK =="
 cd "$PROJECT_DIR"
 flutter pub get
-flutter build apk --release
+# Upstream splits the app into github/play flavors; github is the sideloadable
+# one (self-update from GitHub Releases enabled).
+flutter build apk --release --flavor github
 
-APK_PATH="$PROJECT_DIR/build/app/outputs/flutter-apk/app-release.apk"
+APK_PATH="$PROJECT_DIR/build/app/outputs/flutter-apk/app-github-release.apk"
 if [ -f "$APK_PATH" ]; then
     echo
     echo "Build succeeded: $APK_PATH"
