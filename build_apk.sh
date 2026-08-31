@@ -48,14 +48,16 @@ fi
 export ANDROID_HOME
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 
-echo "Installing/verifying: $REQUIRED_PLATFORM, $REQUIRED_BUILD_TOOLS, $REQUIRED_NDK"
-yes | "$CMDLINE_TOOLS/sdkmanager" \
-    "$REQUIRED_PLATFORM" \
-    "$REQUIRED_BUILD_TOOLS" \
-    "$REQUIRED_NDK" >/dev/null || true  # `yes` gets SIGPIPE; pipefail would abort
-
+# Licenses first, so the install below needs no interactive input and its
+# exit status is not masked by `yes` taking a SIGPIPE under pipefail.
 echo "Accepting Android SDK licenses..."
 yes | "$CMDLINE_TOOLS/sdkmanager" --licenses >/dev/null || true
+
+echo "Installing/verifying: $REQUIRED_PLATFORM, $REQUIRED_BUILD_TOOLS, $REQUIRED_NDK"
+"$CMDLINE_TOOLS/sdkmanager" \
+    "$REQUIRED_PLATFORM" \
+    "$REQUIRED_BUILD_TOOLS" \
+    "$REQUIRED_NDK" >/dev/null
 
 echo "== 4. flutter doctor =="
 flutter doctor
