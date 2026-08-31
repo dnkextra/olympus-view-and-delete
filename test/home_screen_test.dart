@@ -135,6 +135,21 @@ void main() {
     expect(api.listRequested, isFalse);
   });
 
+  testWidgets('download target can be selected from the top settings button',
+      (tester) async {
+    await _pumpHome(tester, file);
+
+    await tester.tap(find.byTooltip('Download settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(CheckedPopupMenuItem<double>, 'About 2 MB per JPG'),
+    );
+    await tester.pumpAndSettle();
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getDouble('download_target_mb'), 2);
+  });
+
   testWidgets('deselecting the last file exits selection mode', (tester) async {
     await _pumpHome(tester, file);
 

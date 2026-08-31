@@ -14,6 +14,7 @@ import '../services/download_foreground_service.dart';
 import '../services/download_registry.dart';
 import '../services/file_saver.dart' as file_saver;
 import '../services/image_cache.dart';
+import '../services/jpeg_compressor.dart';
 import '../services/service_config.dart';
 import '../widgets/photo_grid.dart';
 
@@ -28,6 +29,7 @@ class PhotoPreviewScreen extends StatefulWidget {
   final http.Client? httpClient;
   final Set<String>? selectedPaths;
   final ValueChanged<CameraFile>? onToggleSelection;
+  final int? targetJpegBytes;
 
   const PhotoPreviewScreen({
     super.key,
@@ -38,6 +40,7 @@ class PhotoPreviewScreen extends StatefulWidget {
     this.httpClient,
     this.selectedPaths,
     this.onToggleSelection,
+    this.targetJpegBytes,
   });
 
   @override
@@ -133,7 +136,11 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         total: 1,
         currentFile: file.filename,
       );
-      final bytes = await _api.downloadFile(file);
+      var bytes = await _api.downloadFile(file);
+      if (file.filename.toLowerCase().endsWith('.jpg') ||
+          file.filename.toLowerCase().endsWith('.jpeg')) {
+        bytes = await compressJpegToTarget(bytes, widget.targetJpegBytes);
+      }
       await DownloadForegroundService.update(
         done: 1,
         total: 1,

@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'app_logger.dart';
 import 'file_saver.dart' as file_saver;
 import 'filename_sanitizer.dart';
+import 'jpeg_compressor.dart';
 import 'service_config.dart';
 
 export 'filename_sanitizer.dart' show sanitizeFilename;
@@ -322,6 +323,7 @@ class CameraApi {
     String saveDirPath, {
     void Function(int done, int total, String filename)? onProgress,
     void Function(CameraFile file)? onFileSaved,
+    int? targetJpegBytes,
   }) async {
     int success = 0;
     int failed = 0;
@@ -329,7 +331,11 @@ class CameraApi {
     for (int i = 0; i < files.length; i++) {
       onProgress?.call(i + 1, files.length, files[i].filename);
       try {
-        final bytes = await downloadFile(files[i]);
+        var bytes = await downloadFile(files[i]);
+        if (files[i].filename.toLowerCase().endsWith('.jpg') ||
+            files[i].filename.toLowerCase().endsWith('.jpeg')) {
+          bytes = await compressJpegToTarget(bytes, targetJpegBytes);
+        }
         final safeName = sanitizeFilename(files[i].filename);
         final savedPath =
             await file_saver.saveFileToDevice(safeName, bytes, saveDirPath);
