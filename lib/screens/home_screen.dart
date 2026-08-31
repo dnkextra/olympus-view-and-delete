@@ -111,8 +111,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Not reachable — try auto-connecting to last saved camera
     if (_isMobilePlatform()) {
       final history = await ConnectionHistory.load();
-      if (history.isNotEmpty) {
-        final last = history.first;
+      if (history.length == 1) {
+        final last = history.single;
         final name = last.cameraName.isNotEmpty ? last.cameraName : last.ssid;
         setState(() => _statusMessage = '${AppStrings.connectingTo} $name...');
         try {

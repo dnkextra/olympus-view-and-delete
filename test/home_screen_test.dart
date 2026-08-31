@@ -1,27 +1,31 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:olympus_tg6_manager/constants.dart';
 import 'package:olympus_tg6_manager/l10n/l10n.dart';
 import 'package:olympus_tg6_manager/screens/home_screen.dart';
 import 'package:olympus_tg6_manager/services/camera_api.dart';
+import 'package:olympus_tg6_manager/services/connection_history.dart';
 import 'package:olympus_tg6_manager/services/download_registry.dart';
 import 'package:olympus_tg6_manager/services/locale_controller.dart';
 import 'package:olympus_tg6_manager/services/thumbnail_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeCameraApi extends CameraApi {
-  _FakeCameraApi(this.files);
+  _FakeCameraApi(this.files, {this.connected = true});
 
   final List<CameraFile> files;
+  final bool connected;
   final Completer<List<CameraFile>> _loadCompleter = Completer();
   bool listRequested = false;
 
   @override
   Future<bool> testConnection(
       {Duration timeout = const Duration(seconds: 5)}) async {
-    return true;
+    return connected;
   }
 
   @override
@@ -94,6 +98,39 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     DownloadRegistry.instance.resetForTests();
     file = _file('P0000001.JPG');
+  });
+
+  testWidgets('multiple saved cameras show the connection choices on startup',
+      (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    await ConnectionHistory.save(SavedConnection(
+      ssid: 'CAMERA_ONE',
+      password: 'one',
+      lastConnected: DateTime(2024, 1, 1),
+    ));
+    await ConnectionHistory.save(SavedConnection(
+      ssid: 'CAMERA_TWO',
+      password: 'two',
+      lastConnected: DateTime(2024, 1, 2),
+    ));
+    final api = _FakeCameraApi([], connected: false);
+
+    await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: localizationsDelegates,
+      supportedLocales: L10n.all,
+      home: HomeScreen(
+        localeController: LocaleController(),
+        api: api,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    debugDefaultTargetPlatformOverride = null;
+
+    expect(find.text(AppStrings.scanQr), findsOneWidget);
+    expect(find.text(AppStrings.savedCameras), findsOneWidget);
+    expect(find.text('CAMERA_ONE'), findsOneWidget);
+    expect(find.text('CAMERA_TWO'), findsOneWidget);
+    expect(api.listRequested, isFalse);
   });
 
   testWidgets('deselecting the last file exits selection mode', (tester) async {
