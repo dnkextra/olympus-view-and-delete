@@ -15,6 +15,7 @@ import '../services/file_saver.dart' as file_saver;
 import '../services/image_cache.dart';
 import '../services/preview_preload_plan.dart';
 import '../services/service_config.dart';
+import '../widgets/photo_grid.dart';
 import '../services/thumbnail_manager.dart';
 
 /// Full-screen photo preview loaded via get_resizeimg (high quality).
@@ -24,6 +25,9 @@ class PhotoPreviewScreen extends StatefulWidget {
   final int initialIndex;
   final CameraApi? api;
   final http.Client? httpClient;
+  // Non-null while the grid is in selection mode; enables the app-bar toggle.
+  final Set<String>? selectedPaths;
+  final ValueChanged<CameraFile>? onToggleSelection;
 
   const PhotoPreviewScreen({
     super.key,
@@ -32,6 +36,8 @@ class PhotoPreviewScreen extends StatefulWidget {
     required this.initialIndex,
     this.api,
     this.httpClient,
+    this.selectedPaths,
+    this.onToggleSelection,
   });
 
   @override
@@ -49,6 +55,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
   late int _currentIndex;
   late List<CameraFile> _files;
   final Set<String> _deletedPaths = {};
+  late final Set<String> _selectedPaths;
   final Map<String, Uint8List?> _imageCache = {};
   final Set<String> _loading = {};
   final Map<String, Future<void>> _loadFutures = {};
@@ -59,6 +66,18 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
   final _PreviewCameraQueue _cameraQueue = _PreviewCameraQueue();
   late final bool _ownsApi;
   bool _busy = false;
+  bool _pinching = false;
+  int _pointersDown = 0;
+
+  void _onPointerDown() {
+    _pointersDown++;
+    if (_pointersDown > 1 && !_pinching) setState(() => _pinching = true);
+  }
+
+  void _onPointerUp() {
+    if (_pointersDown > 0) _pointersDown--;
+    if (_pointersDown == 0 && _pinching) setState(() => _pinching = false);
+  }
   int _preloadGeneration = 0;
   Set<String> _downloadedKeys = <String>{};
 
@@ -70,6 +89,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     _ownsClient = widget.httpClient == null;
     _client = widget.httpClient ?? http.Client();
     _files = List.of(widget.files);
+    _selectedPaths = {...?widget.selectedPaths};
     _currentIndex = widget.initialIndex.clamp(0, _files.length - 1);
     _pageController = PageController(initialPage: _currentIndex);
     ThumbnailManager.instance.pauseNetwork();
@@ -298,6 +318,9 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         _imageCache.remove(key);
         _loading.remove(key);
         _error.remove(key);
+        if (_selectedPaths.remove(file.fullPath)) {
+          widget.onToggleSelection?.call(file);
+        }
         _files.removeAt(_currentIndex);
         if (_files.isEmpty) {
           Navigator.pop(context, true);
@@ -477,6 +500,15 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     unawaited(_refreshDownloadedHistory());
   }
 
+  void _toggleSelection(CameraFile file) {
+    setState(() {
+      if (!_selectedPaths.remove(file.fullPath)) {
+        _selectedPaths.add(file.fullPath);
+      }
+    });
+    widget.onToggleSelection?.call(file);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_files.isEmpty) {
@@ -508,6 +540,12 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
             ],
           ),
           actions: [
+            if (widget.selectedPaths != null)
+              SelectionButton(
+                file: file,
+                selected: _selectedPaths.contains(file.fullPath),
+                onPressed: () => _toggleSelection(file),
+              ),
             Text(
               '${_currentIndex + 1}/${_files.length}',
               style: TextStyle(color: Colors.grey[400], fontSize: 13),
@@ -546,76 +584,85 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
             const SizedBox(width: 4),
           ],
         ),
-        body: PageView.builder(
-          controller: _pageController,
-          itemCount: _files.length,
-          onPageChanged: _onPageChanged,
-          itemBuilder: (context, index) {
-            final key = _cacheKey(_files[index]);
-            final bytes = _imageCache[key];
-            final isLoading = _loading.contains(key);
-            final isError = _error.contains(key);
+        // Count raw pointers below the gesture arena: a second finger must
+        // disable PageView scrolling even if the first finger's drag already
+        // won the arena (one-finger-first pinch).
+        body: Listener(
+          onPointerDown: (_) => _onPointerDown(),
+          onPointerUp: (_) => _onPointerUp(),
+          onPointerCancel: (_) => _onPointerUp(),
+          child: PageView.builder(
+            controller: _pageController,
+            physics: _pinching ? const NeverScrollableScrollPhysics() : null,
+            itemCount: _files.length,
+            onPageChanged: _onPageChanged,
+            itemBuilder: (context, index) {
+              final key = _cacheKey(_files[index]);
+              final bytes = _imageCache[key];
+              final isLoading = _loading.contains(key);
+              final isError = _error.contains(key);
 
-            if (isError && bytes == null) {
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.broken_image, color: Colors.grey, size: 64),
-                    SizedBox(height: 12),
-                    Text('Failed to load preview',
-                        style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              );
-            }
+              if (isError && bytes == null) {
+                return const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.broken_image, color: Colors.grey, size: 64),
+                      SizedBox(height: 12),
+                      Text('Failed to load preview',
+                          style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                );
+              }
 
-            if (isLoading && bytes == null) {
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: CircularProgressIndicator(
-                        color: kPrimaryColor,
-                        strokeWidth: 3,
+              if (isLoading && bytes == null) {
+                return const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: CircularProgressIndicator(
+                          color: kPrimaryColor,
+                          strokeWidth: 3,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 16),
-                    Text('Loading preview...',
-                        style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              );
-            }
+                      SizedBox(height: 16),
+                      Text('Loading preview...',
+                          style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                );
+              }
 
-            if (bytes != null) {
-              return InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Center(
-                  child: Image.memory(
-                    bytes,
-                    fit: BoxFit.contain,
-                    cacheWidth: kPreviewImageSize,
-                    gaplessPlayback: true,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (_, __, ___) => const Center(
-                      child: Icon(
-                        Icons.broken_image,
-                        color: Colors.grey,
-                        size: 64,
+              if (bytes != null) {
+                return InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Center(
+                    child: Image.memory(
+                      bytes,
+                      fit: BoxFit.contain,
+                      cacheWidth: kPreviewImageSize,
+                      gaplessPlayback: true,
+                      filterQuality: FilterQuality.high,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(
+                          Icons.broken_image,
+                          color: Colors.grey,
+                          size: 64,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            }
+                );
+              }
 
-            return const SizedBox.shrink();
-          },
+              return const SizedBox.shrink();
+            },
+          ),
         ),
       ),
     );

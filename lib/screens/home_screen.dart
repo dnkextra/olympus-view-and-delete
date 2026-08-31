@@ -581,16 +581,13 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _toggleSelect(CameraFile file) {
-    if (!_selectionMode) return;
     setState(() {
       if (_selectedPaths.contains(file.fullPath)) {
         _selectedPaths.remove(file.fullPath);
       } else {
         _selectedPaths.add(file.fullPath);
       }
-      if (_selectedPaths.isEmpty) {
-        _selectionMode = false;
-      }
+      _selectionMode = _selectedPaths.isNotEmpty;
     });
   }
 
@@ -1654,6 +1651,9 @@ class _HomeScreenState extends State<HomeScreen>
                               file: file,
                               files: _filteredFiles,
                               initialIndex: index,
+                              selectedPaths:
+                                  _selectionMode ? _selectedPaths : null,
+                              onToggleSelection: _toggleSelect,
                             ),
                           ),
                         );
