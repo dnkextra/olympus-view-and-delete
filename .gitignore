@@ -61,7 +61,9 @@ app.*.map.json
 /olympus-wifi/
 
 # Generated release artifacts belong in GitHub Releases, never in Git.
-/releases/
+# Exception: we keep our own APK builds in the repo.
+/releases/*
+!/releases/*.apk
 
 # IDE
 .vscode/
