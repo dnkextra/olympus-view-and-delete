@@ -56,6 +56,8 @@ Future<void> _pumpPreview(
   required List<CameraFile> files,
   required int initialIndex,
   required CameraApi api,
+  Set<String>? selectedPaths,
+  ValueChanged<CameraFile>? onToggleSelection,
 }) async {
   await tester.pumpWidget(MaterialApp(
     home: PhotoPreviewScreen(
@@ -64,6 +66,8 @@ Future<void> _pumpPreview(
       initialIndex: initialIndex,
       api: api,
       httpClient: _makeMockClient(),
+      selectedPaths: selectedPaths,
+      onToggleSelection: onToggleSelection,
     ),
   ));
   // Drain the stubbed HTTP responses and their setState follow-ups.
@@ -114,6 +118,33 @@ void main() {
     );
     expect(find.text('B.JPG'), findsOneWidget);
     expect(find.text('2/3'), findsOneWidget);
+  });
+
+  testWidgets('selection circle toggles the current preview file',
+      (tester) async {
+    final files = [_file('A.JPG'), _file('B.JPG')];
+    final selectedPaths = {files.first.fullPath};
+    await _pumpPreview(
+      tester,
+      files: files,
+      initialIndex: 0,
+      api: _FakeApi(),
+      selectedPaths: selectedPaths,
+      onToggleSelection: (file) {
+        if (!selectedPaths.remove(file.fullPath)) {
+          selectedPaths.add(file.fullPath);
+        }
+      },
+    );
+
+    await tester.tap(find.byTooltip('Deselect A.JPG'));
+    await tester.pump();
+    expect(selectedPaths, isEmpty);
+    expect(find.byTooltip('Select A.JPG'), findsOneWidget);
+
+    await tester.drag(find.byType(PageView), const Offset(-500, 0));
+    await _settle(tester);
+    expect(find.byTooltip('Select B.JPG'), findsOneWidget);
   });
 
   testWidgets('does not mutate caller-supplied file list', (tester) async {

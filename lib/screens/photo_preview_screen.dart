@@ -15,6 +15,7 @@ import '../services/download_registry.dart';
 import '../services/file_saver.dart' as file_saver;
 import '../services/image_cache.dart';
 import '../services/service_config.dart';
+import '../widgets/photo_grid.dart';
 
 /// Full-screen photo preview loaded via get_resizeimg (high quality).
 class PhotoPreviewScreen extends StatefulWidget {
@@ -25,6 +26,8 @@ class PhotoPreviewScreen extends StatefulWidget {
   final CameraApi? api;
   // Optional HTTP client injection for tests. Defaults to a new client.
   final http.Client? httpClient;
+  final Set<String>? selectedPaths;
+  final ValueChanged<CameraFile>? onToggleSelection;
 
   const PhotoPreviewScreen({
     super.key,
@@ -33,6 +36,8 @@ class PhotoPreviewScreen extends StatefulWidget {
     required this.initialIndex,
     this.api,
     this.httpClient,
+    this.selectedPaths,
+    this.onToggleSelection,
   });
 
   @override
@@ -49,6 +54,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
   late List<CameraFile> _files;
   // Paths that were deleted during this session (reported back to caller).
   final Set<String> _deletedPaths = {};
+  late final Set<String> _selectedPaths;
   // Caches keyed by file path, not index — safe across deletions.
   final Map<String, Uint8List?> _imageCache = {};
   final Set<String> _loading = {};
@@ -80,6 +86,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     _ownsClient = widget.httpClient == null;
     _client = widget.httpClient ?? http.Client();
     _files = List.of(widget.files);
+    _selectedPaths = {...?widget.selectedPaths};
     _currentIndex = widget.initialIndex.clamp(0, _files.length - 1);
     _pageController = PageController(initialPage: _currentIndex);
     _loadAround(_currentIndex);
@@ -183,6 +190,9 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         _imageCache.remove(file.fullPath);
         _loading.remove(file.fullPath);
         _error.remove(file.fullPath);
+        if (_selectedPaths.remove(file.fullPath)) {
+          widget.onToggleSelection?.call(file);
+        }
         _files.removeAt(_currentIndex);
         if (_files.isEmpty) {
           Navigator.pop(context, true);
@@ -278,6 +288,15 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     _loadAround(index);
   }
 
+  void _toggleSelection(CameraFile file) {
+    setState(() {
+      if (!_selectedPaths.remove(file.fullPath)) {
+        _selectedPaths.add(file.fullPath);
+      }
+    });
+    widget.onToggleSelection?.call(file);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_files.isEmpty) {
@@ -312,6 +331,12 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
             ],
           ),
           actions: [
+            if (widget.selectedPaths != null)
+              SelectionButton(
+                file: file,
+                selected: _selectedPaths.contains(file.fullPath),
+                onPressed: () => _toggleSelection(file),
+              ),
             Text(
               '${_currentIndex + 1}/${_files.length}',
               style: TextStyle(color: Colors.grey[400], fontSize: 13),

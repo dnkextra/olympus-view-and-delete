@@ -27,7 +27,7 @@ class PhotoGrid extends StatefulWidget {
   final Set<String> selectedPaths;
   final void Function(CameraFile) onTap;
   final void Function(CameraFile) onLongPress;
-  final void Function(CameraFile, int)? onPreview;
+  final void Function(CameraFile, int) onPreview;
 
   const PhotoGrid({
     super.key,
@@ -37,7 +37,7 @@ class PhotoGrid extends StatefulWidget {
     required this.selectedPaths,
     required this.onTap,
     required this.onLongPress,
-    this.onPreview,
+    required this.onPreview,
   });
 
   @override
@@ -106,14 +106,12 @@ class _PhotoGridState extends State<PhotoGrid> {
         file: widget.files[i],
         index: i,
         selected: widget.selectedPaths.contains(widget.files[i].fullPath),
-        downloaded: DownloadRegistry.instance
-            .isDownloaded(widget.files[i].downloadKey),
+        downloaded:
+            DownloadRegistry.instance.isDownloaded(widget.files[i].downloadKey),
         selectionMode: widget.selectionMode,
         onTap: () => widget.onTap(widget.files[i]),
         onLongPress: () => widget.onLongPress(widget.files[i]),
-        onPreview: widget.onPreview != null
-            ? () => widget.onPreview!(widget.files[i], i)
-            : null,
+        onPreview: () => widget.onPreview(widget.files[i], i),
       ),
     );
   }
@@ -126,14 +124,12 @@ class _PhotoGridState extends State<PhotoGrid> {
         file: widget.files[i],
         index: i,
         selected: widget.selectedPaths.contains(widget.files[i].fullPath),
-        downloaded: DownloadRegistry.instance
-            .isDownloaded(widget.files[i].downloadKey),
+        downloaded:
+            DownloadRegistry.instance.isDownloaded(widget.files[i].downloadKey),
         selectionMode: widget.selectionMode,
         onTap: () => widget.onTap(widget.files[i]),
         onLongPress: () => widget.onLongPress(widget.files[i]),
-        onPreview: widget.onPreview != null
-            ? () => widget.onPreview!(widget.files[i], i)
-            : null,
+        onPreview: () => widget.onPreview(widget.files[i], i),
       ),
     );
   }
@@ -157,6 +153,32 @@ class _DownloadedBadge extends StatelessWidget {
   }
 }
 
+class SelectionButton extends StatelessWidget {
+  const SelectionButton({
+    super.key,
+    required this.file,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final CameraFile file;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: '${selected ? 'Deselect' : 'Select'} ${file.filename}',
+      padding: EdgeInsets.zero,
+      onPressed: onPressed,
+      icon: Icon(
+        selected ? Icons.check_circle : Icons.radio_button_unchecked,
+        color: selected ? kPrimaryColor : Colors.white,
+      ),
+    );
+  }
+}
+
 class _GridItem extends StatelessWidget {
   final CameraFile file;
   final int index;
@@ -165,7 +187,7 @@ class _GridItem extends StatelessWidget {
   final bool selectionMode;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
-  final VoidCallback? onPreview;
+  final VoidCallback onPreview;
 
   const _GridItem({
     required this.file,
@@ -175,14 +197,14 @@ class _GridItem extends StatelessWidget {
     required this.selectionMode,
     required this.onTap,
     required this.onLongPress,
-    this.onPreview,
+    required this.onPreview,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: selectionMode ? onTap : onPreview,
-      onLongPress: onLongPress,
+      onTap: onPreview,
+      onLongPress: selectionMode ? null : onLongPress,
       child: Container(
         decoration: _itemDecoration(selected: selected, borderWidth: 2),
         clipBehavior: Clip.antiAlias,
@@ -204,19 +226,14 @@ class _GridItem extends StatelessWidget {
                       left: 4,
                       child: _DownloadedBadge(),
                     ),
-                  if (selected)
+                  if (selectionMode)
                     Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: kPrimaryColor,
-                        ),
-                        child: const Icon(Icons.check,
-                            color: Colors.white, size: 16),
+                      top: 0,
+                      right: 0,
+                      child: SelectionButton(
+                        file: file,
+                        selected: selected,
+                        onPressed: onTap,
                       ),
                     ),
                 ],
@@ -255,7 +272,7 @@ class _ListItem extends StatelessWidget {
   final bool selectionMode;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
-  final VoidCallback? onPreview;
+  final VoidCallback onPreview;
 
   const _ListItem({
     required this.file,
@@ -265,14 +282,14 @@ class _ListItem extends StatelessWidget {
     required this.selectionMode,
     required this.onTap,
     required this.onLongPress,
-    this.onPreview,
+    required this.onPreview,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: selectionMode ? onTap : onPreview,
-      onLongPress: onLongPress,
+      onTap: onPreview,
+      onLongPress: selectionMode ? null : onLongPress,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
         decoration: _itemDecoration(selected: selected, borderWidth: 1),
@@ -324,12 +341,14 @@ class _ListItem extends StatelessWidget {
                 ),
               ),
             ),
-            if (selected)
-              Container(
-                width: 40,
-                height: 72,
-                color: kPrimaryColor,
-                child: const Icon(Icons.check, color: Colors.white),
+            if (selectionMode)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: SelectionButton(
+                  file: file,
+                  selected: selected,
+                  onPressed: onTap,
+                ),
               ),
           ],
         ),

@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:olympus_tg6_manager/constants.dart';
 import 'package:olympus_tg6_manager/l10n/l10n.dart';
 import 'package:olympus_tg6_manager/screens/home_screen.dart';
+import 'package:olympus_tg6_manager/screens/photo_preview_screen.dart';
 import 'package:olympus_tg6_manager/services/camera_api.dart';
 import 'package:olympus_tg6_manager/services/connection_history.dart';
 import 'package:olympus_tg6_manager/services/download_registry.dart';
@@ -61,9 +62,10 @@ CameraFile _file(String name) {
 
 Future<void> _pumpHome(
   WidgetTester tester,
-  CameraFile file,
-) async {
-  final api = _FakeCameraApi([file]);
+  CameraFile file, {
+  List<CameraFile>? files,
+}) async {
+  final api = _FakeCameraApi(files ?? [file]);
   await tester.pumpWidget(
     MaterialApp(
       localizationsDelegates: localizationsDelegates,
@@ -140,12 +142,40 @@ void main() {
     await tester.pump();
     expect(find.text('1 selected'), findsOneWidget);
 
-    await tester.tap(find.text(file.filename));
+    await tester.tap(find.byTooltip('Deselect ${file.filename}'));
     await tester.pump();
 
     expect(find.text('1 selected'), findsNothing);
     expect(find.text('Test camera'), findsOneWidget);
     expect(find.byTooltip('Deselect all'), findsNothing);
+  });
+
+  testWidgets('selection circles toggle while image taps open the preview',
+      (tester) async {
+    final second = _file('P0000002.JPG');
+    await _pumpHome(tester, file, files: [file, second]);
+
+    await tester.longPress(find.text(file.filename));
+    await tester.pump();
+    expect(find.byTooltip('Deselect ${file.filename}'), findsOneWidget);
+    expect(find.byTooltip('Select ${second.filename}'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Select ${second.filename}'));
+    await tester.pump();
+    expect(find.text('2 selected'), findsOneWidget);
+
+    await tester.tap(find.text(file.filename));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final preview = find.byType(PhotoPreviewScreen);
+    expect(preview, findsOneWidget);
+    expect(
+      find.descendant(
+        of: preview,
+        matching: find.byTooltip('Deselect ${file.filename}'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('deselect all exits selection mode', (tester) async {
