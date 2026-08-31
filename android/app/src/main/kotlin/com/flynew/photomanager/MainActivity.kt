@@ -96,10 +96,13 @@ class MainActivity : FlutterActivity() {
                 null
             }
         }
+        val extension = filename.substringAfterLast('.', "unknown").lowercase()
+        val mimeType = URLConnection.guessContentTypeFromName(filename)
+            ?.takeIf { it.startsWith("image/") }
+            ?: "image/$extension"
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-            put(MediaStore.MediaColumns.MIME_TYPE,
-                URLConnection.guessContentTypeFromName(filename) ?: "application/octet-stream")
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
             put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
@@ -108,7 +111,7 @@ class MainActivity : FlutterActivity() {
         if (existing != null) resolver.update(uri, values, null, null)
 
         try {
-            resolver.openOutputStream(uri, "w")?.use { it.write(bytes) }
+            resolver.openOutputStream(uri, "rwt")?.use { it.write(bytes) }
                 ?: error("Could not open MediaStore entry")
             resolver.update(uri, ContentValues().apply {
                 put(MediaStore.MediaColumns.IS_PENDING, 0)
