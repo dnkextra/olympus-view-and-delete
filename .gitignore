@@ -42,8 +42,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Gradle cache (should never be committed)
+# Gradle cache and local signing credentials (never commit)
 /android/.gradle/
+/android/key.properties
 
 # Local working notes (not part of the release)
 /plan.md
