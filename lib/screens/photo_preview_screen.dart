@@ -16,8 +16,8 @@ import '../services/image_cache.dart';
 import '../services/jpeg_compressor.dart';
 import '../services/preview_preload_plan.dart';
 import '../services/service_config.dart';
-import '../widgets/photo_grid.dart';
 import '../services/thumbnail_manager.dart';
+import '../widgets/photo_grid.dart';
 
 /// Full-screen photo preview loaded via get_resizeimg (high quality).
 class PhotoPreviewScreen extends StatefulWidget {
