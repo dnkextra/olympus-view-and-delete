@@ -65,11 +65,11 @@ flutter doctor
 echo "== 5. Building release APK =="
 cd "$PROJECT_DIR"
 flutter pub get
-# Upstream splits the app into github/play flavors. We build play: it disables
-# the in-app updater, which would otherwise offer upstream's APK to our users.
-flutter build apk --release --flavor play
+# Build the sideloadable GitHub flavor. Our fork removes the automatic update
+# check from HomeScreen, so it will not offer upstream's APK to our users.
+flutter build apk --release --flavor github
 
-APK_PATH="$PROJECT_DIR/build/app/outputs/flutter-apk/app-play-release.apk"
+APK_PATH="$PROJECT_DIR/build/app/outputs/flutter-apk/app-github-release.apk"
 if [ -f "$APK_PATH" ]; then
     echo
     echo "Build succeeded: $APK_PATH"
