@@ -70,10 +70,22 @@ flutter pub get
 flutter build apk --release --flavor github
 
 APK_PATH="$PROJECT_DIR/build/app/outputs/flutter-apk/app-github-release.apk"
-if [ -f "$APK_PATH" ]; then
-    echo
-    echo "Build succeeded: $APK_PATH"
-else
+if [ ! -f "$APK_PATH" ]; then
     echo "Build finished but APK not found at expected path."
     exit 1
 fi
+
+mkdir -p "$PROJECT_DIR/releases"
+NEXT_NUM=1
+for existing in "$PROJECT_DIR"/releases/OlympusView-*.apk; do
+    [ -e "$existing" ] || continue
+    num="$(basename "$existing" | sed 's/^OlympusView-//; s/\.apk$//')"
+    if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge "$NEXT_NUM" ]; then
+        NEXT_NUM=$((num + 1))
+    fi
+done
+OUT_PATH="$PROJECT_DIR/releases/OlympusView-$NEXT_NUM.apk"
+cp "$APK_PATH" "$OUT_PATH"
+
+echo
+echo "Build succeeded: $OUT_PATH"
