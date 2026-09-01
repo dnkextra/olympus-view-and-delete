@@ -543,7 +543,6 @@ class _HomeScreenState extends State<HomeScreen>
         const Text(
           '• Background downloads with Android notifications\n'
           '• Persistent green markers for downloaded files\n'
-          '• GitHub APK auto-update with release notes\n'
           '• More reliable thumbnails with validation and retries\n'
           '• Full-screen preview with swipe & zoom\n'
           '• Batch download and delete directly from the camera\n'
