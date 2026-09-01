@@ -65,6 +65,10 @@ class BackgroundDownloadService : Service() {
             // A redelivered intent means Android killed us mid-batch and restarted the
             // whole queue. Skip what already landed; a fresh batch always re-downloads,
             // because re-downloading a known file is a deliberate user action.
+            // ponytail: history is not per-batch, so a redelivered batch also skips a
+            // deliberate re-download of a file downloaded in some earlier batch. Track
+            // per-batch completion (rewriting the queue file as items finish) if that
+            // ever matters more than the duplicate-import storm it prevents.
             val alreadyDownloaded = if ((flags and START_FLAG_REDELIVERY) != 0) {
                 history.getKeys()
             } else {
