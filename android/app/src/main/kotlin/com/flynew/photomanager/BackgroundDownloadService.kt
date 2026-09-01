@@ -178,8 +178,11 @@ class BackgroundDownloadService : Service() {
 
     /** Re-encoded copy carrying the original EXIF, or null to save the original. */
     private fun prepareRecompressed(source: ByteArray, targetBytes: Int): File? {
+        // The EXIF block is written after the search, so its size has to come
+        // out of the budget or the saved file would overshoot the target.
+        val budget = (targetBytes - exifOverhead(source)).coerceAtLeast(1)
         val compressed = try {
-            compressJpeg(source, targetBytes)
+            compressJpeg(source, budget)
         } catch (_: Exception) {
             null
         } ?: return null
@@ -192,6 +195,33 @@ class BackgroundDownloadService : Service() {
         } catch (_: Exception) {
             temp.delete()
             null
+        } catch (_: OutOfMemoryError) {
+            temp.delete()
+            null
+        }
+    }
+
+    /**
+     * Bytes [copyExif] will add to a file, measured by running the same copy
+     * against a 1x1 probe JPEG. Cheaper and more accurate than guessing, and
+     * only over-estimates when a tag cannot be carried at all.
+     */
+    private fun exifOverhead(source: ByteArray): Int {
+        val probe = File.createTempFile("exifprobe", ".jpg", cacheDir)
+        return try {
+            val pixel = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+            val bare = try {
+                encodeJpeg(pixel, MIN_JPEG_QUALITY, ByteArrayOutputStream())
+            } finally {
+                pixel.recycle()
+            }
+            FileOutputStream(probe).use { it.write(bare) }
+            copyExif(source, probe)
+            (probe.length() - bare.size).coerceAtLeast(0L).toInt()
+        } catch (_: Exception) {
+            0
+        } finally {
+            probe.delete()
         }
     }
 

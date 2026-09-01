@@ -34,7 +34,14 @@ Future<Uint8List> compressJpegToTarget(
 }
 
 Uint8List _compressJpeg(({Uint8List bytes, int targetBytes}) input) {
-  final decoded = image.decodeJpg(input.bytes);
+  // decodeJpg returns null or throws on a file it cannot read; either way the
+  // download is saved exactly as it came off the camera.
+  image.Image? decoded;
+  try {
+    decoded = image.decodeJpg(input.bytes);
+  } catch (_) {
+    return input.bytes;
+  }
   if (decoded == null) return input.bytes;
 
   // decodeJpg copies the source EXIF onto the decoded image and encodeJpg

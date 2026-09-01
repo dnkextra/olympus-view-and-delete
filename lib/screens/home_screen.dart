@@ -130,7 +130,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _startApp() async {
-    unawaited(_loadDownloadTarget());
+    // Awaited: a download started right after launch must see the saved
+    // target, and a load landing late would overwrite a fresh user choice.
+    await _loadDownloadTarget();
     await _refreshDownloadedHistory();
     if (mounted) unawaited(_initLoad());
   }
