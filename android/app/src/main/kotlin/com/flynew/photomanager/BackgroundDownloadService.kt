@@ -102,6 +102,10 @@ class BackgroundDownloadService : Service() {
                         success++
                     } catch (_: Exception) {
                         failed++
+                    } catch (_: OutOfMemoryError) {
+                        // Re-encoding a large JPEG can exhaust the heap. That is one
+                        // file lost, not a reason to abandon the rest of the batch.
+                        failed++
                     }
                     updateProgress(index + 1, items.length(), filename)
                 }
