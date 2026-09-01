@@ -9,12 +9,14 @@ class DownloadProgressDialog extends StatefulWidget {
   final CameraApi api;
   final List<CameraFile> files;
   final String saveDirPath;
+  final int? targetJpegBytes;
 
   const DownloadProgressDialog({
     super.key,
     required this.api,
     required this.files,
     required this.saveDirPath,
+    this.targetJpegBytes,
   });
 
   @override
@@ -39,6 +41,7 @@ class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
       result = await widget.api.downloadFiles(
         widget.files,
         widget.saveDirPath,
+        targetJpegBytes: widget.targetJpegBytes,
         onFileSaved: (file, _) =>
             DownloadHistory.mark(file.downloadHistoryKey),
         onProgress: (done, total, filename) {

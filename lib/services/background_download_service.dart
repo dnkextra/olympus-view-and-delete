@@ -14,7 +14,12 @@ class BackgroundDownloadService {
   static bool get isSupported =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
-  static Future<void> start(List<CameraFile> files) async {
+  /// [targetJpegBytes] is carried per item so the service never has to read
+  /// the setting itself; 0 means "keep the original file".
+  static Future<void> start(
+    List<CameraFile> files, {
+    int? targetJpegBytes,
+  }) async {
     if (!isSupported) {
       throw UnsupportedError('Background downloads are Android-only');
     }
@@ -26,6 +31,7 @@ class BackgroundDownloadService {
             'filename': file.filename,
             'historyKey': file.downloadHistoryKey,
             'size': file.size,
+            'targetBytes': targetJpegBytes ?? 0,
           },
         )
         .toList(growable: false);

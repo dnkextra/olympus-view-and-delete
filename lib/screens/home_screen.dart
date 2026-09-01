@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wifi_iot/wifi_iot.dart';
 
@@ -46,6 +47,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with WidgetsBindingObserver {
+  static const _downloadTargetKey = 'download_target_mb';
+
   final CameraApi _api = CameraApi();
 
   List<CameraFile> _allFiles = [];
@@ -65,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   bool _gridView = true;
   bool _showRaw = false;
+  double _downloadTargetMb = 0;
 
   int _loadGeneration = 0;
   Timer? _batchFlushTimer;
@@ -99,7 +103,34 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  int? get _targetJpegBytes =>
+      _downloadTargetMb == 0 ? null : (_downloadTargetMb * 1024 * 1024).round();
+
+  Future<void> _loadDownloadTarget() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      setState(
+          () => _downloadTargetMb = prefs.getDouble(_downloadTargetKey) ?? 0);
+    } catch (e, st) {
+      AppLogger.warning('failed to load download settings',
+          name: 'download_settings', error: e, stackTrace: st);
+    }
+  }
+
+  Future<void> _setDownloadTarget(double value) async {
+    setState(() => _downloadTargetMb = value);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_downloadTargetKey, value);
+    } catch (e, st) {
+      AppLogger.warning('failed to save download settings',
+          name: 'download_settings', error: e, stackTrace: st);
+    }
+  }
+
   Future<void> _startApp() async {
+    unawaited(_loadDownloadTarget());
     await _refreshDownloadedHistory();
     if (mounted) unawaited(_initLoad());
   }
@@ -782,7 +813,10 @@ class _HomeScreenState extends State<HomeScreen>
       if (background) {
         await Permission.notification.request();
         try {
-          await BackgroundDownloadService.start(toDownload);
+          await BackgroundDownloadService.start(
+            toDownload,
+            targetJpegBytes: _targetJpegBytes,
+          );
         } on PlatformException catch (error) {
           if (error.code == 'storage_permission_required') {
             final storage = await Permission.storage.request();
@@ -790,7 +824,10 @@ class _HomeScreenState extends State<HomeScreen>
               if (mounted) _showSnack('Storage permission is required.');
               return;
             }
-            await BackgroundDownloadService.start(toDownload);
+            await BackgroundDownloadService.start(
+              toDownload,
+              targetJpegBytes: _targetJpegBytes,
+            );
           } else {
             if (mounted) {
               _showSnack(error.message ?? 'Could not start background download.');
@@ -822,6 +859,7 @@ class _HomeScreenState extends State<HomeScreen>
         api: _api,
         files: toDownload,
         saveDirPath: saveDirPath,
+        targetJpegBytes: _targetJpegBytes,
       ),
     );
 
@@ -1080,6 +1118,22 @@ class _HomeScreenState extends State<HomeScreen>
               )
             : null,
         actions: [
+          PopupMenuButton<double>(
+            icon: const Icon(Icons.tune),
+            tooltip: 'Download settings',
+            onSelected: _setDownloadTarget,
+            itemBuilder: (context) => const [0.0, 1.0, 2.0, 5.0, 10.0]
+                .map(
+                  (mb) => CheckedPopupMenuItem<double>(
+                    value: mb,
+                    checked: _downloadTargetMb == mb,
+                    child: Text(mb == 0
+                        ? 'Original JPG size'
+                        : 'About ${mb.toInt()} MB per JPG'),
+                  ),
+                )
+                .toList(),
+          ),
           if (_selectionMode) ...[
             IconButton(
               icon: const Icon(Icons.select_all),
@@ -1283,6 +1337,7 @@ class _HomeScreenState extends State<HomeScreen>
                               file: file,
                               files: _filteredFiles,
                               initialIndex: index,
+                              targetJpegBytes: _targetJpegBytes,
                               selectedPaths:
                                   _selectionMode ? _selectedPaths : null,
                               onToggleSelection: _toggleSelect,

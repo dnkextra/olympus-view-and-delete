@@ -13,6 +13,7 @@ import '../services/camera_image_validator.dart';
 import '../services/download_history.dart';
 import '../services/file_saver.dart' as file_saver;
 import '../services/image_cache.dart';
+import '../services/jpeg_compressor.dart';
 import '../services/preview_preload_plan.dart';
 import '../services/service_config.dart';
 import '../widgets/photo_grid.dart';
@@ -28,6 +29,8 @@ class PhotoPreviewScreen extends StatefulWidget {
   // Non-null while the grid is in selection mode; enables the app-bar toggle.
   final Set<String>? selectedPaths;
   final ValueChanged<CameraFile>? onToggleSelection;
+  // Re-encode downloaded JPEGs to fit this many bytes; null keeps the original.
+  final int? targetJpegBytes;
 
   const PhotoPreviewScreen({
     super.key,
@@ -38,6 +41,7 @@ class PhotoPreviewScreen extends StatefulWidget {
     this.httpClient,
     this.selectedPaths,
     this.onToggleSelection,
+    this.targetJpegBytes,
   });
 
   @override
@@ -242,8 +246,14 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       );
       if (bytes == null) throw StateError('Camera returned no file data');
 
+      // The preview cache keeps the original bytes; only the saved copy is
+      // re-encoded.
+      final saveBytes = isJpegFilename(file.filename)
+          ? await compressJpegToTarget(bytes, widget.targetJpegBytes)
+          : bytes;
+
       final saveDirPath = kIsWeb ? null : await file_saver.getSaveDirectory();
-      await file_saver.saveFileToDevice(file.filename, bytes, saveDirPath);
+      await file_saver.saveFileToDevice(file.filename, saveBytes, saveDirPath);
       await DownloadHistory.mark(file.downloadHistoryKey);
       if (!mounted) return;
 

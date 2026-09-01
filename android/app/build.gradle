@@ -102,4 +102,8 @@ flutter {
     source '../..'
 }
 
-dependencies {}
+dependencies {
+    // Bitmap.compress writes no EXIF, so the background download service copies
+    // the tags across itself after re-encoding a JPEG.
+    implementation "androidx.exifinterface:exifinterface:1.3.7"
+}
