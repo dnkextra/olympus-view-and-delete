@@ -62,12 +62,27 @@ class BackgroundDownloadService : Service() {
             var success = 0
             var failed = 0
             val history = DownloadHistoryStore(this)
+            // A redelivered intent means Android killed us mid-batch and restarted the
+            // whole queue. Skip what already landed; a fresh batch always re-downloads,
+            // because re-downloading a known file is a deliberate user action.
+            val alreadyDownloaded = if ((flags and START_FLAG_REDELIVERY) != 0) {
+                history.getKeys()
+            } else {
+                emptySet<String>()
+            }
             try {
                 for (index in 0 until items.length()) {
                     val item = items.getJSONObject(index)
                     val filename = item.getString("filename")
                     val url = item.getString("url")
                     val historyKey = item.getString("historyKey")
+
+                    // Blank keys are never marked, so they are never in the set.
+                    if (historyKey in alreadyDownloaded) {
+                        success++
+                        updateProgress(index + 1, items.length(), filename)
+                        continue
+                    }
 
                     updateProgress(index, items.length(), filename)
                     try {
