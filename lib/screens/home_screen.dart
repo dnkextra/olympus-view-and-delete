@@ -72,10 +72,6 @@ class _HomeScreenState extends State<HomeScreen>
   int _totalBytes = 0;
   Set<String> _downloadedKeys = <String>{};
   Timer? _downloadPollTimer;
-  AppReleaseInfo? _pendingUpdateAfterPermission;
-  Timer? _appUpdatePollTimer;
-  AppUpdateDownloadStatus? _appUpdateStatus;
-  bool _updateInstallIntentOpened = false;
 
   @override
   void initState() {
@@ -90,7 +86,6 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _downloadPollTimer?.cancel();
-    _appUpdatePollTimer?.cancel();
     _batchFlushTimer?.cancel();
     _api.dispose();
     super.dispose();
@@ -100,38 +95,12 @@ class _HomeScreenState extends State<HomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_refreshDownloadedHistory());
-      unawaited(_resumePendingUpdate());
-      unawaited(_resumeAppUpdateMonitor());
       unawaited(_resumeBackgroundMonitor());
     }
   }
 
   Future<void> _startApp() async {
     await _refreshDownloadedHistory();
-
-    final existingUpdate = await AppUpdateService.getUpdateDownloadStatus();
-    if (existingUpdate.isActive || existingUpdate.isReady || existingUpdate.isFailed) {
-      if (!mounted) return;
-      setState(() => _appUpdateStatus = existingUpdate);
-      if (existingUpdate.isActive) _startAppUpdateMonitor();
-      if (existingUpdate.isReady) {
-        unawaited(_openDownloadedUpdateInstaller());
-      }
-      return;
-    }
-
-    await _checkForAppUpdate();
-    final startedUpdate = await AppUpdateService.getUpdateDownloadStatus();
-    if (startedUpdate.isActive || startedUpdate.isReady || startedUpdate.isFailed) {
-      if (!mounted) return;
-      setState(() => _appUpdateStatus = startedUpdate);
-      if (startedUpdate.isActive) _startAppUpdateMonitor();
-      if (startedUpdate.isReady) {
-        unawaited(_openDownloadedUpdateInstaller());
-      }
-      return;
-    }
-
     if (mounted) unawaited(_initLoad());
   }
 
@@ -153,195 +122,6 @@ class _HomeScreenState extends State<HomeScreen>
         return uk;
       default:
         return en;
-    }
-  }
-
-  Future<void> _checkForAppUpdate() async {
-    final release = await AppUpdateService.checkForUpdate();
-    if (release == null || !mounted) return;
-    final install = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kBackgroundColor,
-        title: Text(_localizedText(
-          en: 'Update available',
-          ru: 'Доступно обновление',
-          uk: 'Доступне оновлення',
-        )),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 420),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(_localizedText(
-                  en: 'Olympus View ${release.version} is available.',
-                  ru: 'Доступна версия Olympus View ${release.version}.',
-                  uk: 'Доступна версія Olympus View ${release.version}.',
-                )),
-                if (release.releaseNotes.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    _localizedText(
-                      en: "What's new",
-                      ru: 'Что нового',
-                      uk: 'Що нового',
-                    ),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SelectableText(
-                    release.releaseNotes,
-                    style: const TextStyle(fontSize: 13, height: 1.35),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                Text(
-                  _localizedText(
-                    en: 'Download this update in the background?',
-                    ru: 'Скачать это обновление в фоне?',
-                    uk: 'Завантажити це оновлення у фоні?',
-                  ),
-                  style: TextStyle(color: Colors.grey[400], fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(_localizedText(
-              en: 'Later', ru: 'Позже', uk: 'Пізніше')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_localizedText(
-              en: 'Update', ru: 'Обновить', uk: 'Оновити')),
-          ),
-        ],
-      ),
-    );
-    if (install == true && mounted) await _beginUpdate(release);
-  }
-
-  Future<void> _beginUpdate(AppReleaseInfo release) async {
-    final allowed = await AppUpdateService.canInstallUnknownApps();
-    if (!mounted) return;
-    if (!allowed) {
-      _pendingUpdateAfterPermission = release;
-      _showSnack(_localizedText(
-        en: 'Allow Olympus View to install updates, then return to the app.',
-        ru: 'Разрешите Olympus View устанавливать обновления и вернитесь в приложение.',
-        uk: 'Дозвольте Olympus View встановлювати оновлення та поверніться до застосунку.',
-      ));
-      await AppUpdateService.openInstallSettings();
-      return;
-    }
-    final notifications = await Permission.notification.request();
-    if (!notifications.isGranted && mounted) {
-      _showSnack(_localizedText(
-        en: 'Notifications are off. Download progress and the Install button will remain visible in Olympus View.',
-        ru: 'Уведомления отключены. Прогресс и кнопка установки будут видны прямо в Olympus View.',
-        uk: 'Сповіщення вимкнені. Прогрес і кнопка встановлення будуть видимі прямо в Olympus View.',
-      ));
-    }
-    await AppUpdateService.startUpdateDownload(release);
-    if (!mounted) return;
-    _pendingUpdateAfterPermission = null;
-    await _refreshAppUpdateStatus();
-    _startAppUpdateMonitor();
-    _showSnack(_localizedText(
-      en: 'Update download started. Camera auto-connect is paused until it finishes.',
-      ru: 'Скачивание обновления началось. Автоподключение к камере приостановлено до завершения.',
-      uk: 'Завантаження оновлення почалося. Автопідключення до камери призупинено до завершення.',
-    ));
-  }
-
-  Future<void> _resumePendingUpdate() async {
-    final release = _pendingUpdateAfterPermission;
-    if (release == null || !AppUpdateService.supportsExternalUpdates) return;
-    if (await AppUpdateService.canInstallUnknownApps()) {
-      await _beginUpdate(release);
-    }
-  }
-
-  void _startAppUpdateMonitor() {
-    _appUpdatePollTimer?.cancel();
-    _appUpdatePollTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      unawaited(_refreshAppUpdateStatus(openInstallerWhenReady: true));
-    });
-  }
-
-  Future<void> _refreshAppUpdateStatus({bool openInstallerWhenReady = false}) async {
-    final status = await AppUpdateService.getUpdateDownloadStatus();
-    if (!mounted) return;
-
-    setState(() {
-      _appUpdateStatus = status.isIdle ? null : status;
-    });
-
-    if (status.isActive) return;
-    _appUpdatePollTimer?.cancel();
-    _appUpdatePollTimer = null;
-
-    if (status.isReady && openInstallerWhenReady) {
-      await _openDownloadedUpdateInstaller();
-    }
-  }
-
-  Future<void> _resumeAppUpdateMonitor() async {
-    final status = await AppUpdateService.getUpdateDownloadStatus();
-    if (!mounted || status.isIdle) return;
-    setState(() => _appUpdateStatus = status);
-    if (status.isActive) {
-      _startAppUpdateMonitor();
-    } else if (status.isReady) {
-      await _openDownloadedUpdateInstaller();
-    }
-  }
-
-  Future<void> _openDownloadedUpdateInstaller() async {
-    if (_updateInstallIntentOpened) return;
-    _updateInstallIntentOpened = true;
-    final opened = await AppUpdateService.installDownloadedUpdate();
-    if (!opened && mounted) {
-      _updateInstallIntentOpened = false;
-      _showSnack(_localizedText(
-        en: 'The installer could not be opened. Use the Install button to try again.',
-        ru: 'Не удалось открыть установщик. Нажмите кнопку «Установить», чтобы повторить.',
-        uk: 'Не вдалося відкрити інсталятор. Натисніть «Встановити», щоб повторити.',
-      ));
-    }
-  }
-
-  Future<void> _cancelAppUpdateAndConnect() async {
-    _appUpdatePollTimer?.cancel();
-    _appUpdatePollTimer = null;
-    await AppUpdateService.cancelUpdateDownload();
-    if (!mounted) return;
-    setState(() {
-      _appUpdateStatus = null;
-      _updateInstallIntentOpened = false;
-    });
-    unawaited(_initLoad());
-  }
-
-  Future<void> _retryAppUpdate() async {
-    await AppUpdateService.cancelUpdateDownload();
-    if (!mounted) return;
-    setState(() {
-      _appUpdateStatus = null;
-      _updateInstallIntentOpened = false;
-    });
-    await _checkForAppUpdate();
-    await _refreshAppUpdateStatus();
-    if (_appUpdateStatus?.isActive == true) {
-      _startAppUpdateMonitor();
     }
   }
 
@@ -1104,155 +884,8 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  String _formatUpdateBytes(int value) {
-    if (value <= 0) return '0 MB';
-    return '${(value / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
-  Widget _buildAppUpdateScreen(AppUpdateDownloadStatus status) {
-    final progress = status.progress;
-    final percent = progress == null ? null : (progress * 100).round();
-
-    String title;
-    String message;
-    IconData icon;
-    if (status.isReady) {
-      title = _localizedText(
-        en: 'Update downloaded',
-        ru: 'Обновление скачано',
-        uk: 'Оновлення завантажено',
-      );
-      message = _localizedText(
-        en: 'Olympus View ${status.version} is ready to install.',
-        ru: 'Olympus View ${status.version} готов к установке.',
-        uk: 'Olympus View ${status.version} готовий до встановлення.',
-      );
-      icon = Icons.system_update_alt;
-    } else if (status.isFailed) {
-      title = _localizedText(
-        en: 'Update download failed',
-        ru: 'Ошибка скачивания обновления',
-        uk: 'Помилка завантаження оновлення',
-      );
-      message = _localizedText(
-        en: 'The APK could not be downloaded. Check the internet connection and retry.',
-        ru: 'Не удалось скачать APK. Проверьте подключение к интернету и повторите.',
-        uk: 'Не вдалося завантажити APK. Перевірте інтернет і повторіть.',
-      );
-      icon = Icons.error_outline;
-    } else if (status.state == 'paused') {
-      title = _localizedText(
-        en: 'Update paused',
-        ru: 'Обновление приостановлено',
-        uk: 'Оновлення призупинено',
-      );
-      message = status.reason == 'waiting_for_network'
-          ? _localizedText(
-              en: 'Waiting for internet. Do not connect to the camera Wi-Fi until the APK finishes downloading.',
-              ru: 'Ожидание интернета. Не подключайтесь к Wi‑Fi камеры, пока APK не будет скачан.',
-              uk: 'Очікування інтернету. Не підключайтеся до Wi‑Fi камери, доки APK не завантажиться.',
-            )
-          : _localizedText(
-              en: 'Android paused the download and will retry automatically.',
-              ru: 'Android приостановил скачивание и автоматически попробует снова.',
-              uk: 'Android призупинив завантаження та автоматично спробує знову.',
-            );
-      icon = Icons.wifi_off;
-    } else {
-      title = _localizedText(
-        en: 'Downloading update',
-        ru: 'Скачивание обновления',
-        uk: 'Завантаження оновлення',
-      );
-      message = _localizedText(
-        en: 'Keep an internet connection. Camera auto-connect is temporarily disabled.',
-        ru: 'Оставьте подключение к интернету. Автоподключение к камере временно отключено.',
-        uk: 'Залиште підключення до інтернету. Автопідключення до камери тимчасово вимкнено.',
-      );
-      icon = Icons.downloading;
-    }
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Olympus View')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 64, color: kPrimaryColor),
-                const SizedBox(height: 20),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 12),
-                Text(message, textAlign: TextAlign.center),
-                const SizedBox(height: 24),
-                if (status.isActive) ...[
-                  LinearProgressIndicator(value: progress),
-                  const SizedBox(height: 10),
-                  Text(
-                    status.totalBytes > 0
-                        ? '${_formatUpdateBytes(status.downloadedBytes)} / ${_formatUpdateBytes(status.totalBytes)}${percent == null ? '' : '  ($percent%)'}'
-                        : _localizedText(
-                            en: 'Preparing download…',
-                            ru: 'Подготовка скачивания…',
-                            uk: 'Підготовка завантаження…',
-                          ),
-                    style: TextStyle(color: Colors.grey[400]),
-                  ),
-                ],
-                const SizedBox(height: 28),
-                if (status.isReady)
-                  FilledButton.icon(
-                    onPressed: () {
-                      _updateInstallIntentOpened = false;
-                      unawaited(_openDownloadedUpdateInstaller());
-                    },
-                    icon: const Icon(Icons.install_mobile),
-                    label: Text(_localizedText(
-                      en: 'Install ${status.version}',
-                      ru: 'Установить ${status.version}',
-                      uk: 'Встановити ${status.version}',
-                    )),
-                  ),
-                if (status.isFailed)
-                  FilledButton.icon(
-                    onPressed: _retryAppUpdate,
-                    icon: const Icon(Icons.refresh),
-                    label: Text(_localizedText(
-                      en: 'Retry', ru: 'Повторить', uk: 'Повторити')),
-                  ),
-                if (!status.isReady) ...[
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: _cancelAppUpdateAndConnect,
-                    child: Text(_localizedText(
-                      en: 'Cancel update and connect to camera',
-                      ru: 'Отменить обновление и подключиться к камере',
-                      uk: 'Скасувати оновлення і підключитися до камери',
-                    )),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final appUpdate = _appUpdateStatus;
-    if (appUpdate != null && !appUpdate.isIdle) {
-      return _buildAppUpdateScreen(appUpdate);
-    }
-
     if (_loading && _allFiles.isEmpty) {
       return Scaffold(
         body: Center(
